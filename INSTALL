@@ -1,8 +1,7 @@
-Installing SilentJack
+Installing dvbshout
 =====================
 
-silentjack uses the automake build system, so should
-work on any system supported by JACK. Quick Start:
+Quick Start:
 
  ./configure
  make
