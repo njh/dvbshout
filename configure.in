@@ -15,7 +15,6 @@ AM_INIT_AUTOMAKE( 1.7 )
 AM_CONFIG_HEADER( src/config.h )
 
 
-
 dnl ############# Compiler and tools Checks
 
 AC_PROG_CC
@@ -23,10 +22,13 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_C_INLINE
 
+
 dnl ############## Library Checks
 
-# Check for LibShout
+# Check for libshout
 PKG_CHECK_MODULES(SHOUT, shout >= 2.1)
+CFLAGS="$CFLAGS $SHOUT_CFLAGS"
+LIBS="$LIBS $SHOUT_LIBS"
 
 
 dnl ############## Header Checks
@@ -36,9 +38,9 @@ AC_CHECK_HEADER([linux/dvb/frontend.h])
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 
 
-
-
 dnl ############## Final Output
+
+CFLAGS="$CFLAGS -g -Wall -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE"
 
 AC_OUTPUT([Makefile src/Makefile])
 

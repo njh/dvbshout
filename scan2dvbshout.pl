@@ -83,11 +83,7 @@ while(<CHANNELS>) {
 				print OUTPUT "symbol_rate: $srate\n";
 				
 				# UK DVB-T defaults
-				print OUTPUT "modulation: 64\n";
-				print OUTPUT "guard_interval: 64\n";
-				print OUTPUT "code_rate: 2_3\n";
-				print OUTPUT "bandwidth: 8\n";
-				print OUTPUT "transmission_mode: 2\n";
+				print OUTPUT uk_dvbt();
 
 				print OUTPUT "\n\n";
 				$wrote_tuning=1;
@@ -119,4 +115,12 @@ print "Wrote $wrote channels to $output\n";
 
 
 
+sub uk_dvbt {
+	return	"\n# United Kingdom DVB-T settings\n".
+			"modulation: 64\n".
+			"guard_interval: 64\n".
+			"code_rate: 2_3\n".
+			"bandwidth: 8\n".
+			"transmission_mode: 2\n";
+}
 

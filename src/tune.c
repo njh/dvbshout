@@ -32,7 +32,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 
-#include "tune.h"
+#include "dvbshout.h"
 
 
 
@@ -246,8 +246,7 @@ tune_it (int fd_frontend, fe_settings_t * set)
       feparams.u.ofdm.transmission_mode = set->transmission_mode;
       feparams.u.ofdm.guard_interval = set->guard_interval;
       feparams.u.ofdm.hierarchy_information = HIERARCHY_DEFAULT;
-      fprintf (stderr, "tuning DVB-T (%s) to %d Hz\n", DVB_T_LOCATION,
-	       set->freq);
+      fprintf (stderr, "tuning DVB-T to %d Hz\n", set->freq);
       break;
     case FE_QPSK:
       fprintf (stderr, "tuning DVB-S to %d Hz, Pol:%c Srate=%d, 22kHz=%s\n",
