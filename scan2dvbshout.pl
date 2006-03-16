@@ -115,7 +115,7 @@ close(OUTPUT);
 close(CHANNELS);
 
 
-print "Wrote $wrote streams to $output\n";
+print "Wrote $wrote channels to $output\n";
 
 
 
