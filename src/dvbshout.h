@@ -66,15 +66,19 @@
 // Maximum allowed PID value
 #define MAX_PID_COUNT			8192
 
+// Maximum allowed PID value
+#define STR_BUF_SIZE			1025
+
 
 
 
 /* Structure containing single channel */
 typedef struct shout_channel {
 
+	int num;				// channel number
 	int fd;					// debux file descriptor
 	int apid;				// PID of audio stream
-	int64_t count;
+	int64_t count;			// Number of packets received
 	shout_t *shout;			// libshout structure
 
 } shout_channel_t;
@@ -82,11 +86,11 @@ typedef struct shout_channel {
 
 /* Structure server settings */
 typedef struct shout_server {
-	char* host;
-	char* port;
-	char* user;
-	char* pass;
-	char* protocol;
+	char host[STR_BUF_SIZE];
+	char port[STR_BUF_SIZE];
+	char user[STR_BUF_SIZE];
+	char pass[STR_BUF_SIZE];
+	char protocol[STR_BUF_SIZE];
 
 } shout_server_t;
 
@@ -94,11 +98,11 @@ typedef struct shout_server {
 /* Structure containing tuning settings */
 typedef struct fe_settings {
 
-	int card;					// Card number
+	unsigned char card;			// Card number
 	
-	unsigned int freq;			// Frequency
-	unsigned int srate;			// Symbols per Second
+	unsigned int freq;			// Frequency (Hz)
 	unsigned char polarity;		// Polarity
+	unsigned int srate;			// Symbols per Second (Hz)
 	int tone;					// 22kHz tone (-1 = auto)
 	
 	unsigned int diseqc;
