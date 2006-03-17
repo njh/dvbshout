@@ -45,7 +45,7 @@
 
 /* Defaults are for the United Kingdom */
 #define BANDWIDTH_DEFAULT           BANDWIDTH_8_MHZ
-#define CODERATE_DEFAULT        	FEC_2_3
+#define CODERATE_DEFAULT        	FEC_AUTO
 #define CONSTELLATION_DEFAULT       QAM_64
 #define TRANSMISSION_MODE_DEFAULT   TRANSMISSION_MODE_2K
 #define GUARD_INTERVAL_DEFAULT      GUARD_INTERVAL_1_32
@@ -90,7 +90,7 @@ typedef struct shout_server {
 	char port[STR_BUF_SIZE];
 	char user[STR_BUF_SIZE];
 	char pass[STR_BUF_SIZE];
-	char protocol[STR_BUF_SIZE];
+	int protocol;
 
 } shout_server_t;
 

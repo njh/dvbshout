@@ -119,6 +119,24 @@ static void set_ts_filter(int fd, unsigned short pid)
 
 
 
+static void connect_shout_channels()
+{
+
+	//shout_channel_t *chan =  channels[ channel_count-1 ];
+	
+	// Invalidate the file descriptor for the channel
+	//chan->fd = -1;
+	
+	
+	//shout_set_host( shout, shout_server.host );
+	//shout_set_port( shout, shout_server.port );
+	//shout_set_user( shout, shout_server.user );
+	//shout_set_pass( shout, shout_server.pass );
+	//shout_set_format( shout, SHOUT_FORMAT_MP3 );
+
+}
+
+
 
 
 static void usage() 
@@ -129,156 +147,6 @@ static void usage()
     
     exit(-1);
 }
-
-/*
-static int parse_args( int argc, char **argv)
-{
-	long start_time=-1;
-	long end_time=-1;
-	int i;
-	char *ch;
-	
-    npids=0;
-    
-    fe_set = init_fe_settings();
-    
-    
-    for (i=1;i<argc;i++) {
-		if (strcmp(argv[i],"-f")==0) {
-        i++;
-        fe_set->freq=atoi(argv[i])*1000UL;
-      } else if (strcmp(argv[i],"-p")==0) {
-        i++;
-        if (argv[i][1]==0) {
-          if (tolower(argv[i][0])=='v') {
-            fe_set->polarity='V';
-          } else if (tolower(argv[i][0])=='h') {
-            fe_set->polarity='H';
-          }
-        }
-      } 
-      else if (strcmp(argv[i],"-s")==0) {
-        i++;
-        fe_set->srate=atoi(argv[i])*1000UL;
-      } 
-      else if (strcmp(argv[i],"-D")==0) 
-      {
-        i++;
-        fe_set->diseqc=atoi(argv[i]);
-        if(fe_set->diseqc < 0 || fe_set->diseqc > 4) fe_set->diseqc = 0;
-      } 
-      else if (strcmp(argv[i],"-o")==0) {
-        to_stdout = 1;
-      } else if (strcmp(argv[i],"-n")==0) {
-        i++;
-        secs=atoi(argv[i]);
-      } else if (strcmp(argv[i],"-c")==0) {
-        i++;
-        card=atoi(argv[i]);
-        if ((card < 0) || (card > 3)) {
-          fprintf(stderr,"ERROR: card parameter must be between 0 and 4\n");
-        }
-      } else if (strcmp(argv[i],"-qam")==0) {
-        i++;
-        switch(atoi(argv[i])) {
-          case 16:  fe_set->modulation=QAM_16; break;
-          case 32:  fe_set->modulation=QAM_32; break;
-          case 64:  fe_set->modulation=QAM_64; break;
-          case 128: fe_set->modulation=QAM_128; break;
-          case 256: fe_set->modulation=QAM_256; break;
-          default:
-            fprintf(stderr,"Invalid QAM rate: %s\n",argv[i]);
-            exit(0);
-        }
-      } else if (strcmp(argv[i],"-gi")==0) {
-        i++;
-        switch(atoi(argv[i])) {
-          case 32:  fe_set->guard_interval=GUARD_INTERVAL_1_32; break;
-          case 16:  fe_set->guard_interval=GUARD_INTERVAL_1_16; break;
-          case 8:   fe_set->guard_interval=GUARD_INTERVAL_1_8; break;
-          case 4:   fe_set->guard_interval=GUARD_INTERVAL_1_4; break;
-          default:
-            fprintf(stderr,"Invalid Guard Interval: %s\n",argv[i]);
-            exit(0);
-        }
-      } else if (strcmp(argv[i],"-tm")==0) {
-        i++;
-        switch(atoi(argv[i])) {
-          case 8:   fe_set->transmission_mode=TRANSMISSION_MODE_8K; break;
-          case 2:   fe_set->transmission_mode=TRANSMISSION_MODE_2K; break;
-          default:
-            fprintf(stderr,"Invalid Transmission Mode: %s\n",argv[i]);
-            exit(0);
-        }
-      } else if (strcmp(argv[i],"-bw")==0) {
-        i++;
-        switch(atoi(argv[i])) {
-          case 8:   fe_set->bandwidth=BANDWIDTH_8_MHZ; break;
-          case 7:   fe_set->bandwidth=BANDWIDTH_7_MHZ; break;
-          case 6:   fe_set->bandwidth=BANDWIDTH_6_MHZ; break;
-          default:
-            fprintf(stderr,"Invalid DVB-T bandwidth: %s\n",argv[i]);
-            exit(0);
-        }
-      } else if (strcmp(argv[i],"-cr")==0) {
-        i++;
-        if (!strcmp(argv[i],"AUTO")) {
-          fe_set->code_rate=FEC_AUTO;
-        } else if (!strcmp(argv[i],"1_2")) {
-          fe_set->code_rate=FEC_1_2;
-        } else if (!strcmp(argv[i],"2_3")) {
-          fe_set->code_rate=FEC_2_3;
-        } else if (!strcmp(argv[i],"3_4")) {
-          fe_set->code_rate=FEC_3_4;
-        } else if (!strcmp(argv[i],"5_6")) {
-          fe_set->code_rate=FEC_5_6;
-        } else if (!strcmp(argv[i],"7_8")) {
-          fe_set->code_rate=FEC_7_8;
-        } else {
-          fprintf(stderr,"Invalid Code Rate: %s\n",argv[i]);
-          exit(0);
-        }
-      } else if (strcmp(argv[i],"-from")==0) {
-        i++;
-        if (map_cnt) {
-          pids_map[map_cnt-1].start_time=atoi(argv[i]);
-        } else {
-          start_time=atoi(argv[i]);
-        }
-      } else if (strcmp(argv[i],"-to")==0) {
-        i++;
-        if (map_cnt) {
-          pids_map[map_cnt-1].end_time=atoi(argv[i]);
-        } else {
-          end_time=atoi(argv[i]);
-        }
-     } else {
-          if ((ch=(char*)strstr(argv[i],":"))!=NULL) {
-            pid2=atoi(&ch[1]);
-            ch[0]=0;
-          } else {
-            pid2=-1;
-          }
-          pid=atoi(argv[i]);
-          if (pid) {
-            if (npids == MAX_CHANNELS) {
-              fprintf(stderr,"\nSorry, you can only set up to %d filters.\n\n",MAX_CHANNELS);
-              return(-1);
-            } else {
-              pids[npids++]=pid;
-              if (pid2!=-1) {
-                hi_mappids[pid]=pid2>>8;
-                lo_mappids[pid]=pid2&0xff;
-                fprintf(stderr,"Mapping %d to %d\n",pid,pid2);
-              }
-            }
-          }
-        }
-      }
- 
- 	return 0;
- }
-*/	
 
 
 
@@ -296,7 +164,8 @@ int main(int argc, char **argv)
 	for (i=0;i<MAX_PID_COUNT;i++) channel_map[i]=NULL;
 	for (i=0;i<MAX_CHANNEL_COUNT;i++) channels[i]=NULL;
 	memset( &shout_server, 0, sizeof(shout_server_t) );
-
+	shout_server.protocol = SHOUT_PROTOCOL_HTTP;
+	
 	
 	//if (argc<=1) usage();
 	//else
@@ -349,6 +218,8 @@ int main(int argc, char **argv)
 	fprintf(stderr,"Streaming %d channel%s.\n",channel_count,(channel_count==1 ? "" : "s"));
   
   
+  	// Connect to the Icecast server
+ 	connect_shout_channels();
   
   
 
@@ -387,7 +258,11 @@ int main(int argc, char **argv)
 	
 	// Clean up
 	for (i=0;i<channel_count;i++) {
-		close(channels[i]->fd);
+		if (channels[i]->fd != -1) close(channels[i]->fd);
+		if (channels[i]->shout) {
+			shout_close( channels[i]->shout );
+			shout_free( channels[i]->shout );
+		}
 		free( channels[i] );
 	}
 	close(fd_dvr);

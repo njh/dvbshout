@@ -56,7 +56,7 @@ print OUTPUT "host: localhost\n";
 print OUTPUT "port: 8000\n";
 print OUTPUT "user: source\n";
 print OUTPUT "pass: hackme\n";
-print OUTPUT "protocol: http\n\n";
+print OUTPUT "protocol: icecast2\n\n";
 
 
 my $wrote_tuning = 0;
@@ -94,7 +94,7 @@ while(<CHANNELS>) {
 			print OUTPUT "mount_point: $mount\n";
 			print OUTPUT "audio_pid: $apid\n";
 			print OUTPUT "genre: Varied\n";
-			print OUTPUT "public:\n";
+			print OUTPUT "public: 0\n";
 			print OUTPUT "url:\n";
 			print OUTPUT "description:\n";
 			print OUTPUT "\n";

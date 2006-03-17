@@ -29,7 +29,7 @@
 #include "dvbshout.h"
 
 
-void process_statement_server( char* name, char* value, int line_num )
+static void process_statement_server( char* name, char* value, int line_num )
 {
 
 	if (strcmp( "host", name ) == 0) {
@@ -40,8 +40,17 @@ void process_statement_server( char* name, char* value, int line_num )
 		strncpy( shout_server.user, value, STR_BUF_SIZE);
 	} else if (strcmp( "pass", name ) == 0) { 
 		strncpy( shout_server.pass, value, STR_BUF_SIZE);
-	} else if (strcmp( "protocol", name ) == 0) { 
-		strncpy( shout_server.protocol, value, STR_BUF_SIZE);
+	} else if (strcmp( "protocol", name ) == 0) {
+		if (strcmp( "http", value )==0 || strcmp( "icecast2", value )==0) {
+			shout_server.protocol = SHOUT_PROTOCOL_HTTP;
+		} else if (strcmp( "xaudiocast", value )==0 || strcmp( "icecast1", value )==0) {
+			shout_server.protocol = SHOUT_PROTOCOL_XAUDIOCAST;
+		} else if (strcmp( "icq", value )==0 || strcmp( "shoutcast", value )==0) {
+			shout_server.protocol = SHOUT_PROTOCOL_ICY;
+		} else {
+			fprintf(stderr, "Error parsing configuation line %d: invalid protocol.\n", line_num);
+			exit(-1);
+		}
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
 		exit(-1);
@@ -49,7 +58,8 @@ void process_statement_server( char* name, char* value, int line_num )
 	
 }
 
-void process_statement_tuning( char* name, char* value, int line_num )
+
+static void process_statement_tuning( char* name, char* value, int line_num )
 {
 
 	if (strcmp( "card", name ) == 0) {
@@ -60,6 +70,70 @@ void process_statement_tuning( char* name, char* value, int line_num )
 		fe_set->polarity = tolower(value[0]);
 	} else if (strcmp( "symbol_rate", name ) == 0) { 
 		fe_set->srate = atoi( value )*1000UL;
+	} else if (strcmp( "modulation", name ) == 0) { 
+		switch( atoi( value ) ) {
+			case 16:  fe_set->modulation=QAM_16; break;
+			case 32:  fe_set->modulation=QAM_32; break;
+			case 64:  fe_set->modulation=QAM_64; break;
+			case 128: fe_set->modulation=QAM_128; break;
+			case 256: fe_set->modulation=QAM_256; break;
+			default:
+				fprintf(stderr,"Error parsing configuation line %d: invalid QAM rate\n", line_num);
+				exit(-1);
+			break;
+        }
+        
+	} else if (strcmp( "guard_interval", name ) == 0) { 
+		switch( atoi( value ) ) {
+			case 32:  fe_set->guard_interval=GUARD_INTERVAL_1_32; break;
+			case 16:  fe_set->guard_interval=GUARD_INTERVAL_1_16; break;
+			case 8:   fe_set->guard_interval=GUARD_INTERVAL_1_8; break;
+			case 4:   fe_set->guard_interval=GUARD_INTERVAL_1_4; break;
+			default:
+				fprintf(stderr,"Error parsing configuation line %d: invalid Guard Interval\n", line_num);
+				exit(-1);
+			break;
+        }
+        
+	} else if (strcmp( "code_rate", name ) == 0) { 
+        if (!strcmp(value,"auto")) {
+          fe_set->code_rate=FEC_AUTO;
+        } else if (!strcmp(value,"1_2")) {
+          fe_set->code_rate=FEC_1_2;
+        } else if (!strcmp(value,"2_3")) {
+          fe_set->code_rate=FEC_2_3;
+        } else if (!strcmp(value,"3_4")) {
+          fe_set->code_rate=FEC_3_4;
+        } else if (!strcmp(value,"5_6")) {
+          fe_set->code_rate=FEC_5_6;
+        } else if (!strcmp(value,"7_8")) {
+          fe_set->code_rate=FEC_7_8;
+        } else {
+			fprintf(stderr,"Error parsing configuation line %d: invalid code rate\n", line_num);
+			exit(-1);
+        }
+
+	} else if (strcmp( "bandwidth", name ) == 0) { 
+		switch(atoi(value)) {
+			case 8:   fe_set->bandwidth=BANDWIDTH_8_MHZ; break;
+			case 7:   fe_set->bandwidth=BANDWIDTH_7_MHZ; break;
+			case 6:   fe_set->bandwidth=BANDWIDTH_6_MHZ; break;
+			default:
+				fprintf(stderr,"Error parsing configuation line %d: invalid DVB-T bandwidth\n", line_num);
+				exit(-1);
+			break;
+		}
+
+	} else if (strcmp( "transmission_mode", name ) == 0) { 
+		switch(atoi(value)) {
+			case 8:   fe_set->transmission_mode=TRANSMISSION_MODE_8K; break;
+			case 2:   fe_set->transmission_mode=TRANSMISSION_MODE_2K; break;
+			default:
+				fprintf(stderr,"Error parsing configuation line %d: invalid transmission mode\n", line_num);
+				exit(-1);
+			break;
+		}
+        
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
 		exit(-1);
@@ -67,12 +141,73 @@ void process_statement_tuning( char* name, char* value, int line_num )
 
 }
 
-void process_statement_channel( char* name, char* value, int line_num )
+
+static void process_statement_channel( char* name, char* value, int line_num )
 {
+	shout_channel_t *chan =  channels[ channel_count-1 ];
+	shout_t *shout = chan->shout;
+	
+	if (strcmp( "name", name ) == 0) {
+		if (shout_set_name( shout, value ) != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
+			exit(-1);
+		}
+		
+	} else if (strcmp( "mount", name ) == 0) { 
+		if (shout_set_mount( shout, value ) != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
+			exit(-1);
+		}
+		
+	
+	} else if (strcmp( "audio_pid", name ) == 0) { 
+	
+		// Check PID is valid
+		chan->apid = atoi( value );
+		if (chan->apid == 0) {
+			fprintf(stderr,"Error parsing configuation line %d: invalid PID\n", line_num);
+			exit(-1);
+		}
+		
+		// Add channel to the channel map
+		if( channel_map[ chan->apid ] ) {
+			fprintf(stderr,"Error parsing configuation line %d: duplicate PID\n", line_num);
+			exit(-1);
+		} else {
+			channel_map[ chan->apid ] = chan;
+		}
+		
+	} else if (strcmp( "genre", name ) == 0) { 
+		if (shout_set_genre( shout, value ) != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
+			exit(-1);
+		}
+	
+	} else if (strcmp( "public", name ) == 0) { 
+		if (shout_set_public( shout, atoi(value) ) != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
+			exit(-1);
+		}
+	
+	} else if (strcmp( "url", name ) == 0) { 
+		if (shout_set_url( shout, value ) != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
+			exit(-1);
+		}
+	
+	} else if (strcmp( "description", name ) == 0) { 
+		if (shout_set_description( shout, value ) != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
+			exit(-1);
+		}
 
+	} else {
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
+		exit(-1);
+	}
+	
+		
 }
-
-
 
 int parse_config( char *filepath )
 {
@@ -183,7 +318,7 @@ int parse_config( char *filepath )
 	
 
 	fclose( file );
-
+	
 	return 0;
 }
 
