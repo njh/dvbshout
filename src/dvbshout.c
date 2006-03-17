@@ -225,7 +225,7 @@ void process_ts_packets( int fd_dvr )
 {
 	unsigned char buf[TS_PACKET_SIZE];
 	unsigned char* pes_ptr=NULL;
-	unsigned int pes_len;
+	size_t pes_len;
 	int bytes_read;
 
 	while ( !Interrupted) {
@@ -251,7 +251,13 @@ void process_ts_packets( int fd_dvr )
 		// Check there is a payload
 		if (!(buf[3]&0x10))
 			continue;
-			
+
+		// Transport error?
+		if ( buf[1]&0x90) {
+			fprintf(stderr, "Transport error in PID %d.\n", pid);
+		}			
+
+
 
 		// Location of and size of PES payload
 		pes_ptr = &buf[4];
@@ -262,11 +268,6 @@ void process_ts_packets( int fd_dvr )
 			pes_ptr += buf[4] + 1;
 			pes_len -= buf[4] + 1;
 			fprintf(stderr,"offset=%d\n", offset);
-		}
-
-		// Transport error?
-		if ( buf[1]&0x90) {
-			fprintf(stderr, "Transport error in PID %d.\n", pid);
 		}
 
 		// Check we know about the payload
