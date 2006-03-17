@@ -224,6 +224,8 @@ static void parse_args(int argc, char **argv)
 void process_ts_packets( int fd_dvr )
 {
 	unsigned char buf[TS_PACKET_SIZE];
+	unsigned char* pes_ptr=NULL;
+	unsigned int pes_len;
 	int bytes_read;
 
 	while ( !Interrupted) {
@@ -250,9 +252,15 @@ void process_ts_packets( int fd_dvr )
 		if (!(buf[3]&0x10))
 			continue;
 			
+
+		// Location of and size of PES payload
+		pes_ptr = &buf[4];
+		pes_len = TS_PACKET_SIZE - 4;
+
 		// Check for adaptation field?
 		if ( buf[3] & 0x20) {
-			offset = buf[4] + 1;
+			pes_ptr += buf[4] + 1;
+			pes_len -= buf[4] + 1;
 			fprintf(stderr,"offset=%d\n", offset);
 		}
 
@@ -271,13 +279,13 @@ void process_ts_packets( int fd_dvr )
 			// Start of a PES header?
 			if ( buf[1]&0x40) {
 			
-				es_ptr = parse_pes( &buf[4], TS_PACKET_SIZE-4, &es_len, chan );
+				es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
 					
 			} else {
 			
 				if (chan->stream_id) {
 					// Don't output any data until we have seen a PES header
-					es_ptr = &buf[4];
+					es_ptr = pes_ptr;
 					es_len = TS_PACKET_SIZE-4;
 					chan->ts_count++;
 					
