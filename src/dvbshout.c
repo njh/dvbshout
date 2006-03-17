@@ -221,16 +221,92 @@ static void parse_args(int argc, char **argv)
 	}
 }
 
+void process_ts_packets( int fd_dvr )
+{
+	unsigned char buf[TS_PACKET_SIZE];
+	int bytes_read;
 
+	while ( !Interrupted) {
+		unsigned int pid=0, offset=0;
+		
+		bytes_read = read(fd_dvr,buf,TS_PACKET_SIZE);
+		if (bytes_read==0) continue;
+		if (bytes_read!=TS_PACKET_SIZE) {
+			fprintf(stderr,"No bytes left to read - aborting\n");
+			break;
+		}
+		
+		// Check the sync-byte
+		if (buf[0] != 0x47) {
+			fprintf(stderr,"Lost syncronisation - aborting\n");
+			break;
+		}
+		
+		// Get the PID of this TS packet
+		pid = (buf[1] & 0x1F)<<8;
+		pid |= buf[2];
+		
+		// Check there is a payload
+		if (!(buf[3]&0x10))
+			continue;
+			
+		// Check for adaptation field?
+		if ( buf[3] & 0x20) {
+			offset = buf[4] + 1;
+			fprintf(stderr,"offset=%d\n", offset);
+		}
+
+		// Transport error?
+		if ( buf[1]&0x90) {
+			fprintf(stderr, "Transport error in PID %d.\n", pid);
+		}
+
+		// Check we know about the payload
+		if (channel_map[ pid ]) {
+			shout_channel_t *chan = channel_map[ pid ];
+			unsigned char* es_ptr=NULL;
+			size_t es_len=0;
+			
+	
+			// Start of a PES header?
+			if ( buf[1]&0x40) {
+			
+				es_ptr = parse_pes( &buf[4], TS_PACKET_SIZE-4, &es_len, chan );
+					
+			} else {
+			
+				if (chan->stream_id) {
+					// Don't output any data until we have seen a PES header
+					es_ptr = &buf[4];
+					es_len = TS_PACKET_SIZE-4;
+					chan->ts_count++;
+					
+					if (es_len>chan->pes_remaining) {
+						es_len-=3;
+						fprintf(stderr, "ts_count=%d es_len=%d pes_remaining=%d\n", chan->ts_count, es_len-3, chan->pes_remaining);
+					}
+				}
+			}
+			
+			// Got some data to write out?
+			if (es_ptr && es_len) {
+				chan->pes_remaining -= es_len;
+				fwrite( es_ptr, es_len, 1, stdout );
+			}
+			
+		} else {
+			fprintf(stderr, "Error: don't know anything about PID %d.\n", pid);
+		}
+
+	}
+}
 
 
 
 int main(int argc, char **argv)
 {
-	unsigned char buf[TS_PACKET_SIZE];
 	int fd_frontend=-1;
 	int fd_dvr=-1;
-	int bytes_read;
 	int i;
 	
 	
@@ -286,9 +362,10 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	// Now we set the filters 
-	for (i=0;i<channel_count;i++) set_ts_filter(channels[i]->fd,channels[i]->apid);
-
+	// Now we set the filters
+	for (i=0;i<channel_count;i++) {
+		set_ts_filter(channels[i]->fd,channels[i]->apid);
+	}
 
 	fprintf(stderr,"Streaming %d channel%s.\n",channel_count,(channel_count==1 ? "" : "s"));
   
@@ -297,80 +374,8 @@ int main(int argc, char **argv)
  	connect_shout_channels();
   
   
-
-	while ( !Interrupted) {
-		unsigned int pid=0, offset=0;
-		
-		bytes_read = read(fd_dvr,buf,TS_PACKET_SIZE);
-		if (bytes_read==0) continue;
-		if (bytes_read!=TS_PACKET_SIZE) {
-			fprintf(stderr,"No bytes left to read - aborting\n");
-			break;
-		}
-		
-		// Check the sync-byte
-		if (buf[0] != 0x47) {
-			fprintf(stderr,"Lost syncronisation - aborting\n");
-			break;
-		}
-		
-		// Get the PID of this TS packet
-		pid = (buf[1] & 0x1F)<<8;
-		pid |= buf[2];
-		
-		// Check there is a payload
-		if (!(buf[3]&0x10))
-			continue;
-			
-		// Check for adaptation field?
-		if ( buf[3] & 0x20) {
-			offset = buf[4] + 1;
-			fprintf(stderr,"offset=%d\n", offset);
-		}
-
-		// Transport error?
-		if ( buf[1]&0x90) {
-			fprintf(stderr, "Transport error in PID %d.\n", pid);
-		}
-
-		// Check we know about the payload
-		if (channel_map[ pid ]) {
-			shout_channel_t *chan = channel_map[ pid ];
-			unsigned char* es_ptr=NULL;
-			size_t es_len=0;
-			
-	
-			// Start of PES header?
-			if ( buf[1]&0x40) {
-			
-				es_ptr = parse_pes( &buf[4], TS_PACKET_SIZE-4, &es_len, chan );
-					
-			} else {
-			
-				if (chan->stream_id) {
-					// Don't output any data until we have seen a PES header
-					es_ptr = &buf[4];
-					es_len = TS_PACKET_SIZE-4;
-					chan->ts_count++;
-					
-					if (es_len>chan->pes_remaining) {
-						es_len-=3;
-						fprintf(stderr, "ts_count=%d es_len=%d pes_remaining=%d\n", chan->ts_count, es_len-3, chan->pes_remaining);
-					}
-				}
-			}
-			
-			// Got some data to write out?
-			if (es_ptr && es_len) {
-				chan->pes_remaining -= es_len;
-				fwrite( es_ptr, es_len, 1, stdout );
-			}
-			
-		} else {
-			fprintf(stderr, "Error: don't know anything about PID %d.\n", pid);
-		}
-
-	}
+  	// Read and process TS packets from DVR device
+	process_ts_packets( fd_dvr );
 	
 
 	if (Interrupted) {
