@@ -2,7 +2,7 @@
 
 	dvbshout.c
 	(C) Dave Chapman <dave@dchapman.com> 2001, 2002.
-	(C) Nichoals J Humfrey <njh@aelius.com> 2006.
+	(C) Nicholas J Humfrey <njh@aelius.com> 2006.
 	
 	Copyright notice:
 	
@@ -35,9 +35,6 @@
 #include <signal.h>
 #include <string.h>
 
-
-#include "transform.h"
-#include "remux.h"
 #include "dvbshout.h"
 #include "config.h"
 
@@ -91,14 +88,6 @@ static void signal_handler(int signum)
 	signal(signum,signal_handler);
 }
 
-static long getmsec()
-{
-	struct timeval tv;
-	gettimeofday(&tv,(struct timezone*) NULL);
-	return(tv.tv_sec%1000000)*1000 + tv.tv_usec/1000;
-}
-
-
 
 static void set_ts_filter(int fd, unsigned short pid)
 {
@@ -118,35 +107,121 @@ static void set_ts_filter(int fd, unsigned short pid)
 }
 
 
-
 static void connect_shout_channels()
 {
+	int i;
+	
+	for( i=0; i< channel_count; i++ ) {
+		shout_channel_t *chan =  channels[ i ];
+		shout_t *shout =  chan->shout;
+		
+		// Invalidate the file descriptor for the channel
+		chan->fd = -1;
 
-	//shout_channel_t *chan =  channels[ channel_count-1 ];
-	
-	// Invalidate the file descriptor for the channel
-	//chan->fd = -1;
-	
-	
-	//shout_set_host( shout, shout_server.host );
-	//shout_set_port( shout, shout_server.port );
-	//shout_set_user( shout, shout_server.user );
-	//shout_set_pass( shout, shout_server.pass );
-	//shout_set_format( shout, SHOUT_FORMAT_MP3 );
+			
+		shout_set_host( shout, shout_server.host );
+		shout_set_port( shout, shout_server.port );
+		shout_set_user( shout, shout_server.user );
+		shout_set_password( shout, shout_server.password );
+		shout_set_protocol( shout, shout_server.protocol );
+		shout_set_format( shout, SHOUT_FORMAT_MP3 );
+		
+	}
 
 }
 
-
-
-
-static void usage() 
+static unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, shout_channel_t *chan) 
 {
-    fprintf(stderr,"%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-    fprintf(stderr,"Usage: dvbshout [OPTIONS]\n\n");
-    fprintf(stderr,"\t-c <config> Location of configuration file.\n");
-    
-    exit(-1);
+	size_t pes_len = (buf[4] << 8) + buf[5];
+	size_t pes_header_len = buf[8];
+	unsigned char pes_flag_scrambled = (buf[6] & 0x30) >> 4;
+	unsigned char pes_flag_priority = (buf[6] & 0x08) >> 3;
+	unsigned char pes_flag_alignment = (buf[6] & 0x04) >> 2;
+	unsigned char pes_flag_copyright = (buf[6] & 0x02) >> 1;
+	unsigned char pes_flag_original = (buf[6] & 0x01) >> 0;
+	
+	unsigned char pes_flag_pts_dts = (buf[7] & 0xC0) >> 6;
+	unsigned char pes_flag_escr = (buf[7] & 0x20) >> 5;
+	unsigned char pes_flag_esr = (buf[7] & 0x10) >> 4;
+	unsigned char pes_flag_dsm_trick = (buf[7] & 0x8) >> 3;
+	unsigned char pes_flag_add_copy = (buf[7] & 0x4) >> 2;
+	unsigned char pes_flag_crc = (buf[7] & 0x2) >> 1;
+	unsigned char pes_flag_exten = (buf[7] & 0x1) >> 0;
+	int stream_id = buf[3];
+	
+	
+	if( buf[0] != 0 || buf[1] != 0 || buf[2] != 1 )
+	{
+		fprintf(stderr, "Invalid PES header (pid: %d).\n", chan->apid);
+		return 0;
+	}
+	
+	// 0xC0 = First MPEG-2 audio steam
+	if( stream_id != 0xC0 )
+	{
+		fprintf(stderr, "Ignoring stream with ID 0x%x (pid: %d).\n", stream_id, chan->apid);
+		return 0;
+	}
+	
+	// only keep the first stream we see
+	chan->stream_id = stream_id;
+	
+	// Check PES Extension header 
+	if( ( buf[6]&0xC0 ) != 0x80 )
+	{
+		fprintf(stderr, "Error: invalid MPEG-2 PES extension header (pid: %d).\n", chan->apid);
+		return 0;
+	}
+
+	if( pes_flag_scrambled )
+	{
+		fprintf(stderr, "Error: PES payload is scrambled (pid: %d).\n", chan->apid);
+		return 0;
+	}
+
+/*	
+	fprintf(stderr, "pid: %d, length: %d header_len: %d\n", chan->apid, pes_len, pes_header_len);
+	fprintf(stderr, "  pes_flag_priority=%d\n", pes_flag_priority );
+	fprintf(stderr, "  pes_flag_alignment=%d\n", pes_flag_alignment );
+	fprintf(stderr, "  pes_flag_copyright=%d\n", pes_flag_copyright );
+	fprintf(stderr, "  pes_flag_original=%d\n", pes_flag_original );
+	fprintf(stderr, "  pes_flag_pts_dts=0x%x\n", pes_flag_pts_dts );
+	fprintf(stderr, "  pes_flag_escr=%d\n", pes_flag_escr );
+	fprintf(stderr, "  pes_flag_esr=%d\n", pes_flag_esr );
+	fprintf(stderr, "  pes_flag_dsm_trick=%d\n", pes_flag_dsm_trick );
+	fprintf(stderr, "  pes_flag_add_copy=%d\n", pes_flag_add_copy );
+	fprintf(stderr, "  pes_flag_crc=%d\n", pes_flag_crc );
+	fprintf(stderr, "  pes_flag_exten=%d\n", pes_flag_exten );
+*/
+
+	// Make note of the amount of PES payload remaining
+	chan->pes_remaining = pes_len-(size-6-pes_header_len);
+	chan->ts_count = 1;
+
+	// Return pointer and length of payload
+	*payload_size = size-(6+pes_header_len);
+	
+	return buf+(6+pes_header_len);
 }
+
+
+
+static void parse_args(int argc, char **argv) 
+{
+	if (1) {
+	
+ 		parse_config( "/home/njh/dvbshout/dvbshout.conf" );
+
+ 	} else {
+		fprintf(stderr,"%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+		fprintf(stderr,"Usage: dvbshout [OPTIONS]\n\n");
+		fprintf(stderr,"\t-c <config> Location of configuration file.\n");
+		
+		exit(-1);
+	}
+}
+
+
 
 
 
@@ -165,20 +240,20 @@ int main(int argc, char **argv)
 	for (i=0;i<MAX_CHANNEL_COUNT;i++) channels[i]=NULL;
 	memset( &shout_server, 0, sizeof(shout_server_t) );
 	shout_server.protocol = SHOUT_PROTOCOL_HTTP;
+
+
+	// Initialise libshout
+	shout_init();
 	
 	
-	//if (argc<=1) usage();
-	//else
-	parse_config( "/home/njh/dvbshout/dvbshout.conf" );
+	// Parse command line arguments
+	parse_args( argc, argv );
 	
 	
 	if (signal(SIGHUP, signal_handler) == SIG_IGN) signal(SIGHUP, SIG_IGN);
 	if (signal(SIGINT, signal_handler) == SIG_IGN) signal(SIGINT, SIG_IGN);
 	if (signal(SIGTERM, signal_handler) == SIG_IGN) signal(SIGTERM, SIG_IGN);
 
-
-	// Initialise libshout
-	shout_init();
 	
 
 	// Open the Frontend
@@ -224,7 +299,7 @@ int main(int argc, char **argv)
   
 
 	while ( !Interrupted) {
-		int pid;
+		unsigned int pid=0, offset=0;
 		
 		bytes_read = read(fd_dvr,buf,TS_PACKET_SIZE);
 		if (bytes_read==0) continue;
@@ -239,15 +314,62 @@ int main(int argc, char **argv)
 			break;
 		}
 		
-      
-      	// Write to STDOUT
-      	fwrite( buf, TS_PACKET_SIZE, 1, stdout );
+		// Get the PID of this TS packet
+		pid = (buf[1] & 0x1F)<<8;
+		pid |= buf[2];
+		
+		// Check there is a payload
+		if (!(buf[3]&0x10))
+			continue;
+			
+		// Check for adaptation field?
+		if ( buf[3] & 0x20) {
+			offset = buf[4] + 1;
+			fprintf(stderr,"offset=%d\n", offset);
+		}
 
+		// Transport error?
+		if ( buf[1]&0x90) {
+			fprintf(stderr, "Transport error in PID %d.\n", pid);
+		}
 
-        pid=((buf[1]&0x1f) << 8) | (buf[2]);
-        //fprintf(stderr,"pid=%d\n",pid);
-        //counts[pid]++;
-        
+		// Check we know about the payload
+		if (channel_map[ pid ]) {
+			shout_channel_t *chan = channel_map[ pid ];
+			unsigned char* es_ptr=NULL;
+			size_t es_len=0;
+			
+	
+			// Start of PES header?
+			if ( buf[1]&0x40) {
+			
+				es_ptr = parse_pes( &buf[4], TS_PACKET_SIZE-4, &es_len, chan );
+					
+			} else {
+			
+				if (chan->stream_id) {
+					// Don't output any data until we have seen a PES header
+					es_ptr = &buf[4];
+					es_len = TS_PACKET_SIZE-4;
+					chan->ts_count++;
+					
+					if (es_len>chan->pes_remaining) {
+						es_len-=3;
+						fprintf(stderr, "ts_count=%d es_len=%d pes_remaining=%d\n", chan->ts_count, es_len-3, chan->pes_remaining);
+					}
+				}
+			}
+			
+			// Got some data to write out?
+			if (es_ptr && es_len) {
+				chan->pes_remaining -= es_len;
+				fwrite( es_ptr, es_len, 1, stdout );
+			}
+			
+		} else {
+			fprintf(stderr, "Error: don't know anything about PID %d.\n", pid);
+		}
+
 	}
 	
 
@@ -268,7 +390,6 @@ int main(int argc, char **argv)
 	close(fd_dvr);
 	close(fd_frontend);
 	if (fe_set) free( fe_set );
-
 
 	// Shutdown libshout
 	shout_shutdown();	

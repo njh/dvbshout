@@ -34,12 +34,12 @@ static void process_statement_server( char* name, char* value, int line_num )
 
 	if (strcmp( "host", name ) == 0) {
 		strncpy( shout_server.host, value, STR_BUF_SIZE);
-	} else if (strcmp( "port", name ) == 0) { 
-		strncpy( shout_server.port, value, STR_BUF_SIZE);
+	} else if (strcmp( "port", name ) == 0) {
+		shout_server.port = atoi( value );
 	} else if (strcmp( "user", name ) == 0) { 
 		strncpy( shout_server.user, value, STR_BUF_SIZE);
-	} else if (strcmp( "pass", name ) == 0) { 
-		strncpy( shout_server.pass, value, STR_BUF_SIZE);
+	} else if (strcmp( "password", name ) == 0) { 
+		strncpy( shout_server.password, value, STR_BUF_SIZE);
 	} else if (strcmp( "protocol", name ) == 0) {
 		if (strcmp( "http", value )==0 || strcmp( "icecast2", value )==0) {
 			shout_server.protocol = SHOUT_PROTOCOL_HTTP;
@@ -269,6 +269,7 @@ int parse_config( char *filepath )
 
 				chan->num = channel_count;
 				chan->shout = shout_new();
+				chan->stream_id = 0;
 				
 				strcpy( section, ptr );
 				channels[ channel_count ] = chan;

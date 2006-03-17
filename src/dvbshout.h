@@ -60,6 +60,9 @@
 // The size of MPEG2 TS packets
 #define TS_PACKET_SIZE			188
 
+// The size of MPEG2 TS packets
+#define IPACK_STORAGE_SIZE		2048
+
 // There seems to be a limit of 16 simultaneous filters in the driver
 #define MAX_CHANNEL_COUNT		16
 
@@ -78,8 +81,12 @@ typedef struct shout_channel {
 	int num;				// channel number
 	int fd;					// debux file descriptor
 	int apid;				// PID of audio stream
+	int stream_id;			// PES stream ID
 	int64_t count;			// Number of packets received
 	shout_t *shout;			// libshout structure
+	
+	int ts_count;
+	size_t pes_remaining;
 
 } shout_channel_t;
 
@@ -87,9 +94,9 @@ typedef struct shout_channel {
 /* Structure server settings */
 typedef struct shout_server {
 	char host[STR_BUF_SIZE];
-	char port[STR_BUF_SIZE];
+	int port;
 	char user[STR_BUF_SIZE];
-	char pass[STR_BUF_SIZE];
+	char password[STR_BUF_SIZE];
 	int protocol;
 
 } shout_server_t;
