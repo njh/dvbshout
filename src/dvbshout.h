@@ -80,13 +80,12 @@ typedef struct shout_channel {
 
 	int num;				// channel number
 	int fd;					// debux file descriptor
-	int apid;				// PID of audio stream
+	int apid;				// Packet Identifier of audio stream
 	int stream_id;			// PES stream ID
 	int64_t count;			// Number of packets received
 	shout_t *shout;			// libshout structure
 	
-	int ts_count;
-	size_t pes_remaining;
+	size_t pes_remaining;	// Number of bytes remaining in current PES packet
 
 } shout_channel_t;
 
@@ -135,6 +134,10 @@ extern shout_server_t shout_server;
 
 /* In tune.c */
 int tune_it(int fd_frontend, fe_settings_t *set);
+
+/* In pes.c */
+unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, shout_channel_t *chan);
+
 
 /* In parse_config.c */
 int parse_config( char *filepath );
