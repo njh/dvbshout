@@ -47,7 +47,7 @@ void process_ts_packets( FILE* file_in, shout_channel_t *chan )
 	int bytes_read;
 
 	while ( 1 ) {
-		unsigned int pid=0, offset=0;
+		unsigned int pid=0;
 		
 		bytes_read = fread(buf,1,TS_PACKET_SIZE, file_in);
 		if (bytes_read!=TS_PACKET_SIZE) {
@@ -56,65 +56,72 @@ void process_ts_packets( FILE* file_in, shout_channel_t *chan )
 		}
 		
 		// Check the sync-byte
-		if (buf[0] != 0x47) {
+		if (TS_PACKET_SYNC_BYTE(buf) != 0x47) {
 			fprintf(stderr,"Lost syncronisation - aborting\n");
 			break;
 		}
 		
 		// Get the PID of this TS packet
-		pid = (buf[1] & 0x1F)<<8;
-		pid |= buf[2];
+		pid = TS_PACKET_PID(buf);
 		
-		// Check there is a payload
-		if (!(buf[3]&0x10))
-			continue;
-
 		// Transport error?
-		if ( buf[1]&0x90) {
+		if ( TS_PACKET_TRANS_ERROR(buf) ) {
 			fprintf(stderr, "Transport error in PID %d.\n", pid);
 		}			
 
+		// Scrambled?
+		if ( TS_PACKET_SCRAMBLING(buf) ) {
+			fprintf(stderr, "Error: PID %d is scrambled.\n", pid);
+			break;
+		}	
 
+		// Continuity check
+		//fprintf(stderr, "TS_PACKET_CONT_COUNT: %d.\n", TS_PACKET_CONT_COUNT(buf) );
 
 		// Location of and size of PES payload
 		pes_ptr = &buf[4];
 		pes_len = TS_PACKET_SIZE - 4;
 
 		// Check for adaptation field?
-		if ( buf[3] & 0x20) {
-			pes_ptr += buf[4] + 1;
-			pes_len -= buf[4] + 1;
-			fprintf(stderr,"offset=%d\n", offset);
+		if (TS_PACKET_ADAPTATION(buf)==0x1) {
+			// Payload only, no adaptation field
+		} else if (TS_PACKET_ADAPTATION(buf)==0x2) {
+			// Adaptation field only, no payload
+			continue;
+		} else if (TS_PACKET_ADAPTATION(buf)==0x3) {
+			// Adaptation field AND payload
+			fprintf(stderr, "Adaptation field AND payload\n" );
 		}
-
+		
+		
 		// Check we know about the payload
 		if (pid == chan->apid) {
 			unsigned char* es_ptr=NULL;
 			size_t es_len=0;
 			
 			// Start of a PES header?
-			if ( buf[1]&0x40) {
+			if ( TS_PACKET_PAYLOAD_START(buf) ) {
 			
 				es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
 					
 			} else {
-			
+
 				if (chan->stream_id) {
 					// Don't output any data until we have seen a PES header
 					es_ptr = pes_ptr;
-					es_len = TS_PACKET_SIZE-4;
-					
+					es_len = pes_len;
+				
+					// Are we are the end of the PES packet?
 					if (es_len>chan->pes_remaining) {
-						es_len-=3;
-						fprintf(stderr, "es_len=%d pes_remaining=%d\n", es_len-3, chan->pes_remaining);
+						es_len=chan->pes_remaining;
 					}
 				}
 			}
 			
 			// Got some data to write out?
-			if (es_ptr && es_len) {
-				chan->pes_remaining -= es_len;
+			if (es_ptr) {
 				fwrite( es_ptr, es_len, 1, stdout );
+				chan->pes_remaining -= es_len;
 			}
 			
 		} else {

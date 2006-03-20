@@ -37,25 +37,13 @@
 
 unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, shout_channel_t *chan) 
 {
-	size_t pes_len = ((buf[4]) << 8) | (buf[5]);
-	size_t pes_header_len = buf[8];
-	unsigned char pes_flag_scrambled = (buf[6] & 0x30) >> 4;
-	unsigned char pes_flag_priority = (buf[6] & 0x08) >> 3;
-	unsigned char pes_flag_alignment = (buf[6] & 0x04) >> 2;
-	unsigned char pes_flag_copyright = (buf[6] & 0x02) >> 1;
-	unsigned char pes_flag_original = (buf[6] & 0x01) >> 0;
-	
-	unsigned char pes_flag_pts_dts = (buf[7] & 0xC0) >> 6;
-	unsigned char pes_flag_escr = (buf[7] & 0x20) >> 5;
-	unsigned char pes_flag_esr = (buf[7] & 0x10) >> 4;
-	unsigned char pes_flag_dsm_trick = (buf[7] & 0x8) >> 3;
-	unsigned char pes_flag_add_copy = (buf[7] & 0x4) >> 2;
-	unsigned char pes_flag_crc = (buf[7] & 0x2) >> 1;
-	unsigned char pes_flag_exten = (buf[7] & 0x1) >> 0;
-	int stream_id = buf[3];
-	
-	
-	if( buf[0] != 0 || buf[1] != 0 || buf[2] != 1 )
+	size_t pes_len = PES_PACKET_LEN(buf);
+	size_t pes_header_len = PES_PACKET_HEAD_LEN(buf);
+	int stream_id = PES_PACKET_STREAM_ID(buf);
+
+	if( PES_PACKET_SYNC_BYTE1(buf) != 0x00 ||
+	    PES_PACKET_SYNC_BYTE2(buf) != 0x00 ||
+	    PES_PACKET_SYNC_BYTE3(buf) != 0x01 )
 	{
 		fprintf(stderr, "Invalid PES header (pid: %d).\n", chan->apid);
 		return 0;
@@ -72,42 +60,43 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, sh
 	chan->stream_id = stream_id;
 	
 	// Check PES Extension header 
-	if( ( buf[6]&0xC0 ) != 0x80 )
+	if( PES_PACKET_SYNC_CODE(buf) != 0x2 )
 	{
-		fprintf(stderr, "Error: invalid MPEG-2 PES extension header (pid: %d).\n", chan->apid);
+		fprintf(stderr, "Error: include sync code PES extension header (pid: %d).\n", chan->apid);
 		return 0;
 	}
 
-	if( pes_flag_scrambled )
+	// Reject scrambled packets
+	if( PES_PACKET_SCRAMBLED(buf) )
 	{
 		fprintf(stderr, "Error: PES payload is scrambled (pid: %d).\n", chan->apid);
 		return 0;
 	}
 
-	fprintf(stderr, "pid: %d, length: %d header_len: %d\n", chan->apid, pes_len, pes_header_len);
-/*	
-	fprintf(stderr, "  pes_flag_priority=%d\n", pes_flag_priority );
-	fprintf(stderr, "  pes_flag_alignment=%d\n", pes_flag_alignment );
-	fprintf(stderr, "  pes_flag_copyright=%d\n", pes_flag_copyright );
-	fprintf(stderr, "  pes_flag_original=%d\n", pes_flag_original );
-	fprintf(stderr, "  pes_flag_pts_dts=0x%x\n", pes_flag_pts_dts );
-	fprintf(stderr, "  pes_flag_escr=%d\n", pes_flag_escr );
-	fprintf(stderr, "  pes_flag_esr=%d\n", pes_flag_esr );
-	fprintf(stderr, "  pes_flag_dsm_trick=%d\n", pes_flag_dsm_trick );
-	fprintf(stderr, "  pes_flag_add_copy=%d\n", pes_flag_add_copy );
-	fprintf(stderr, "  pes_flag_crc=%d\n", pes_flag_crc );
-	fprintf(stderr, "  pes_flag_exten=%d\n", pes_flag_exten );
+	fprintf(stderr, "PES Packet:   pid: %d,  length: %d\n", chan->apid, pes_len);
+
+
+/*  Debugging
+	fprintf(stderr, "  PES_PACKET_STREAM_ID=%d\n", PES_PACKET_STREAM_ID(buf) );
+	fprintf(stderr, "  PES_PACKET_PRIORITY=%d\n", PES_PACKET_PRIORITY(buf) );
+	fprintf(stderr, "  PES_PACKET_ALIGNMENT=%d\n", PES_PACKET_ALIGNMENT(buf) );
+	fprintf(stderr, "  PES_PACKET_COPYRIGHT=%d\n", PES_PACKET_COPYRIGHT(buf) );
+	fprintf(stderr, "  PES_PACKET_ORIGINAL=%d\n", PES_PACKET_ORIGINAL(buf) );
+	fprintf(stderr, "  PES_PACKET_PTS_DTS=0x%x\n", PES_PACKET_PTS_DTS(buf) );
+	fprintf(stderr, "  PES_PACKET_ESCR=%d\n", PES_PACKET_ESCR(buf) );
+	fprintf(stderr, "  PES_PACKET_ESR=%d\n", PES_PACKET_ESR(buf) );
+	fprintf(stderr, "  PES_PACKET_DSM_TRICK=%d\n", PES_PACKET_DSM_TRICK(buf) );
+	fprintf(stderr, "  PES_PACKET_ADD_COPY=%d\n", PES_PACKET_ADD_COPY(buf) );
+	fprintf(stderr, "  PES_PACKET_CRC=%d\n", PES_PACKET_CRC(buf) );
+	fprintf(stderr, "  PES_PACKET_EXTEN=%d\n", PES_PACKET_EXTEN(buf) );
 */
 
-	// Make note of the amount of PES payload remaining
-	chan->pes_remaining = pes_len-(size-6-pes_header_len);
+	// Store the length of the PES packet payload
+	chan->pes_remaining = pes_len - (3+pes_header_len);
 
-	// Return pointer and length of payload
-	*payload_size = size-(6+pes_header_len);
-	
-	return buf+(6+pes_header_len);
+	// Return pointer and length of payload in this TS packet
+	*payload_size = size-(8+pes_header_len);
+	return buf+(8+pes_header_len);
 }
-
-
 
 

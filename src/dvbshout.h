@@ -1,6 +1,6 @@
 /* dvb_defaults.h
 
-   Copyright (C) Dave Chapman 2002, Nicholas Humfrey 2006
+   Copyright (C) Nicholas Humfrey 2006, Dave Chapman 2002
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -60,9 +60,6 @@
 // The size of MPEG2 TS packets
 #define TS_PACKET_SIZE			188
 
-// The size of MPEG2 TS packets
-#define IPACK_STORAGE_SIZE		2048
-
 // There seems to be a limit of 16 simultaneous filters in the driver
 #define MAX_CHANNEL_COUNT		16
 
@@ -72,6 +69,48 @@
 // Maximum allowed PID value
 #define STR_BUF_SIZE			1025
 
+
+
+
+/*
+	Macros for accessing MPEG-2 TS packet headers
+*/
+#define TS_PACKET_SYNC_BYTE(b)		(b[0])
+#define TS_PACKET_TRANS_ERROR(b)	((b[1]&0x80)>>7)
+#define TS_PACKET_PAYLOAD_START(b)	((b[1]&0x40)>>6)
+#define TS_PACKET_PRIORITY(b)		((b[1]&0x20)>>4)
+#define TS_PACKET_PID(b)			(((b[1]&0x1F)<<8) | b[2])
+
+#define TS_PACKET_SCRAMBLING(b)		((b[3]&0xC0)>>6)
+#define TS_PACKET_ADAPTATION(b)		((b[3]&0x30)>>4)
+#define TS_PACKET_CONT_COUNT(b)		((b[3]&0x0F)>>0)
+
+
+
+/*
+	Macros for accessing MPEG-2 PES packet headers
+*/
+#define PES_PACKET_SYNC_BYTE1(b)	(b[0])
+#define PES_PACKET_SYNC_BYTE2(b)	(b[1])
+#define PES_PACKET_SYNC_BYTE3(b)	(b[2])
+#define PES_PACKET_STREAM_ID(b)		(b[3])
+#define PES_PACKET_LEN(b)			((b[4]) << 8) | (b[5])
+
+#define PES_PACKET_SYNC_CODE(b)		((b[6] & 0xC0) >> 6)
+#define PES_PACKET_SCRAMBLED(b)		((b[6] & 0x30) >> 4)
+#define PES_PACKET_PRIORITY(b)		((b[6] & 0x08) >> 3)
+#define PES_PACKET_ALIGNMENT(b)		((b[6] & 0x04) >> 2)
+#define PES_PACKET_COPYRIGHT(b)		((b[6] & 0x02) >> 1)
+#define PES_PACKET_ORIGINAL(b)		((b[6] & 0x01) >> 0)
+
+#define PES_PACKET_PTS_DTS(b)		((b[7] & 0xC0) >> 6)
+#define PES_PACKET_ESCR(b)			((b[7] & 0x20) >> 5)
+#define PES_PACKET_ESR(b)			((b[7] & 0x10) >> 4)
+#define PES_PACKET_DSM_TRICK(b)		((b[7] & 0x8) >> 3)
+#define PES_PACKET_ADD_COPY(b)		((b[7] & 0x4) >> 2)
+#define PES_PACKET_CRC(b)			((b[7] & 0x2) >> 1)
+#define PES_PACKET_EXTEN(b)			((b[7] & 0x1) >> 0)
+#define PES_PACKET_HEAD_LEN(b)		(b[8])
 
 
 
