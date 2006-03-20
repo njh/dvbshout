@@ -118,6 +118,7 @@
 typedef struct shout_channel {
 
 	int num;				// channel number
+	char name[STR_BUF_SIZE];// channel name
 	int fd;					// debux file descriptor
 	int apid;				// Packet Identifier of audio stream
 	int stream_id;			// PES stream ID

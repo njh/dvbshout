@@ -153,6 +153,8 @@ static void process_statement_channel( char* name, char* value, int line_num )
 			exit(-1);
 		}
 		
+		strncpy( chan->name, value, STR_BUF_SIZE);
+		
 	} else if (strcmp( "mount", name ) == 0) { 
 		if (shout_set_mount( shout, value ) != SHOUTERR_SUCCESS) {
 			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));

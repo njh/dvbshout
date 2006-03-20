@@ -91,7 +91,7 @@ while(<CHANNELS>) {
 			
 			print OUTPUT "[channel]\n";
 			print OUTPUT "name: $name\n";
-			print OUTPUT "mount: $mount\n";
+			print OUTPUT "mount: /dvb/$mount\n";
 			print OUTPUT "audio_pid: $apid\n";
 			print OUTPUT "genre: Varied\n";
 			print OUTPUT "public: 0\n";

@@ -89,27 +89,49 @@ static void signal_handler(int signum)
 }
 
 
-static void set_ts_filter(int fd, unsigned short pid)
+static void set_ts_filters()
 {
 	struct dmx_pes_filter_params pesFilterParams;
+	int i;
 	
-	fprintf(stderr,"Setting filter for PID %d\n",pid);
-	pesFilterParams.pid     = pid;
-	pesFilterParams.input   = DMX_IN_FRONTEND;
-	pesFilterParams.output  = DMX_OUT_TS_TAP;
-	pesFilterParams.pes_type = DMX_PES_OTHER;
-	pesFilterParams.flags   = DMX_IMMEDIATE_START;
+	fprintf(stderr,"Setting PID filters:\n");
+
+	for (i=0;i<channel_count;i++) {
 	
-	if (ioctl(fd, DMX_SET_PES_FILTER, &pesFilterParams) < 0)  {
-		fprintf(stderr,"FILTER %i: ",pid);
-		perror("DMX SET PES FILTER");
+		fprintf(stderr,"  %d: %s\n", channels[i]->apid, channels[i]->name);
+		pesFilterParams.pid     = channels[i]->apid;
+		pesFilterParams.input   = DMX_IN_FRONTEND;
+		pesFilterParams.output  = DMX_OUT_TS_TAP;
+		pesFilterParams.pes_type = DMX_PES_OTHER;
+		pesFilterParams.flags   = DMX_IMMEDIATE_START;
+		
+		if (ioctl(channels[i]->fd, DMX_SET_PES_FILTER, &pesFilterParams) < 0)  {
+			fprintf(stderr,"Failed to set filter for %i: ",channels[i]->apid);
+			perror("DMX SET PES FILTER");
+		}
+	}
+	
+	fprintf(stderr,"\n");
+}
+
+
+static const char* shout_protocol_name(int protocol)
+{
+	switch(protocol) {
+		case SHOUT_PROTOCOL_HTTP: return "Icecast 2";
+		case SHOUT_PROTOCOL_XAUDIOCAST: return "Icecast 1";
+		case SHOUT_PROTOCOL_ICY: return "ShoutCast";
+		default: return "Unknown";
 	}
 }
 
 
 static void connect_shout_channels()
 {
-	int i;
+	int result, i;
+	
+	fprintf(stderr, "Connecting to %s server:\n", 
+		shout_protocol_name( shout_server.protocol ));
 	
 	for( i=0; i< channel_count; i++ ) {
 		shout_channel_t *chan =  channels[ i ];
@@ -118,7 +140,7 @@ static void connect_shout_channels()
 		// Invalidate the file descriptor for the channel
 		chan->fd = -1;
 
-			
+		// Set server parameters
 		shout_set_host( shout, shout_server.host );
 		shout_set_port( shout, shout_server.port );
 		shout_set_user( shout, shout_server.user );
@@ -126,22 +148,31 @@ static void connect_shout_channels()
 		shout_set_protocol( shout, shout_server.protocol );
 		shout_set_format( shout, SHOUT_FORMAT_MP3 );
 		
+		// Connect!
+		fprintf(stderr, "  http://%s:%d%s\n",
+			shout_get_host( shout ), shout_get_port( shout ), shout_get_mount( shout ));
+			
+		result = shout_open( shout );
+		if (result != SHOUTERR_SUCCESS) {
+			fprintf(stderr,"  Failed to connect to server: %s.\n", shout_get_error(shout));
+			exit(-1);
+		}
+		
 	}
-
+	
+	fprintf(stderr,"\n");
 }
 
 
 static void parse_args(int argc, char **argv) 
 {
-	if (1) {
+	if (argc>1) {
 	
- 		parse_config( "/home/njh/dvbshout/dvbshout.conf" );
+ 		parse_config( argv[1] );
 
  	} else {
 		fprintf(stderr,"%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-		fprintf(stderr,"Usage: dvbshout [OPTIONS]\n\n");
-		fprintf(stderr,"\t-c <config> Location of configuration file.\n");
-		
+		fprintf(stderr,"Usage: dvbshout <configfile>\n\n");
 		exit(-1);
 	}
 }
@@ -184,6 +215,7 @@ void process_ts_packets( int fd_dvr )
 		}	
 
 		// Continuity check
+		// FIXME:
 		//fprintf(stderr, "TS_PACKET_CONT_COUNT: %d.\n", TS_PACKET_CONT_COUNT(buf) );
 
 		// Location of and size of PES payload
@@ -198,15 +230,23 @@ void process_ts_packets( int fd_dvr )
 			continue;
 		} else if (TS_PACKET_ADAPTATION(buf)==0x3) {
 			// Adaptation field AND payload
-			fprintf(stderr, "Adaptation field AND payload\n" );
+			fprintf(stderr, "** Adaptation field AND payload **\n" );
+			// FIXME:
+			// pes_ptr += 
+			// pes_len -= 
 		}
 
+		// Output the TS
+		//if (pid == 2314) {
+		//	fwrite( buf, TS_PACKET_SIZE, 1, stdout );
+		//}
 
 		// Check we know about the payload
 		if (channel_map[ pid ]) {
 			shout_channel_t *chan = channel_map[ pid ];
 			unsigned char* es_ptr=NULL;
 			size_t es_len=0;
+			
 			
 			// Start of a PES header?
 			if ( TS_PACKET_PAYLOAD_START(buf) ) {
@@ -229,7 +269,13 @@ void process_ts_packets( int fd_dvr )
 			
 			// Got some data to write out?
 			if (es_ptr) {
-				fwrite( es_ptr, es_len, 1, stdout );
+				int result = shout_send_raw( chan->shout, es_ptr, es_len );
+				if (result < 0) {
+					fprintf(stderr, "Error: failed to send data to server for PID %d.\n", pid);
+					fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
+					break;
+				}
+				//fwrite( es_ptr, es_len, 1, stdout );
 				chan->pes_remaining -= es_len;
 			}
 			
@@ -302,18 +348,15 @@ int main(int argc, char **argv)
 	}
 
 	// Now we set the filters
-	for (i=0;i<channel_count;i++) {
-		set_ts_filter(channels[i]->fd,channels[i]->apid);
-	}
+	set_ts_filters();
+	
 
-	fprintf(stderr,"Streaming %d channel%s.\n",channel_count,(channel_count==1 ? "" : "s"));
-  
-  
   	// Connect to the Icecast server
  	connect_shout_channels();
   
   
   	// Read and process TS packets from DVR device
+  	fprintf(stderr,"Running.\n");
 	process_ts_packets( fd_dvr );
 	
 

@@ -73,10 +73,9 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, sh
 		return 0;
 	}
 
+/*
 	fprintf(stderr, "PES Packet:   pid: %d,  length: %d\n", chan->apid, pes_len);
 
-
-/*  Debugging
 	fprintf(stderr, "  PES_PACKET_STREAM_ID=%d\n", PES_PACKET_STREAM_ID(buf) );
 	fprintf(stderr, "  PES_PACKET_PRIORITY=%d\n", PES_PACKET_PRIORITY(buf) );
 	fprintf(stderr, "  PES_PACKET_ALIGNMENT=%d\n", PES_PACKET_ALIGNMENT(buf) );
@@ -92,11 +91,11 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, sh
 */
 
 	// Store the length of the PES packet payload
-	chan->pes_remaining = pes_len - (3+pes_header_len);
+	chan->pes_remaining = pes_len - (2+pes_header_len);
 
 	// Return pointer and length of payload in this TS packet
-	*payload_size = size-(8+pes_header_len);
-	return buf+(8+pes_header_len);
+	*payload_size = size-(9+pes_header_len);
+	return buf+(9+pes_header_len);
 }
 
 

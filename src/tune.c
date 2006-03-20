@@ -39,7 +39,7 @@
 static void
 print_status (FILE * fd, fe_status_t festatus)
 {
-  fprintf (fd, "FE_STATUS:");
+  fprintf (fd, "Frontend Status:");
   if (festatus & FE_HAS_SIGNAL)
     fprintf (fd, " FE_HAS_SIGNAL");
   if (festatus & FE_TIMEDOUT)
@@ -130,12 +130,12 @@ check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
   while (((event.status & FE_TIMEDOUT) == 0)
 	 && ((event.status & FE_HAS_LOCK) == 0))
     {
-      fprintf (stderr, "polling....\n");
-      if (poll (pfd, 1, 10000))
+    //fprintf (stderr, "Polling....\n");
+    if (poll (pfd, 1, 10000))
 	{
 	  if (pfd[0].revents & POLLIN)
 	    {
-	      fprintf (stderr, "Getting frontend event\n");
+	      //fprintf (stderr, "Getting frontend event\n");
 	      if ((status = ioctl (fd_frontend, FE_GET_EVENT, &event)) < 0)
 		{
 		  if (errno != EOVERFLOW)
@@ -158,30 +158,28 @@ check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
 
   if (event.status & FE_HAS_LOCK)
     {
+	
+	fprintf (stderr, "Gained lock:\n");
 
       switch (fe_info.type)
 	{
 	case FE_OFDM:
-	  fprintf (stderr, "Event:  Frequency: %d\n",
-		   event.parameters.frequency);
+	  fprintf (stderr, "  Frontend Type: OFDM\n");
+	  fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
 	  break;
 	case FE_QPSK:
-	  fprintf (stderr, "Event:  Frequency: %d\n",
+	  fprintf (stderr, "  Frontend Type: QPSK\n");
+	  fprintf (stderr, "  Frequency: %d\n",
 		   (unsigned int) ((event.parameters.frequency) +
 				   (tone == SEC_TONE_OFF ? LOF1 : LOF2)));
-	  fprintf (stderr, "        SymbolRate: %d\n",
-		   event.parameters.u.qpsk.symbol_rate);
-	  fprintf (stderr, "        FEC_inner:  %d\n",
-		   event.parameters.u.qpsk.fec_inner);
-	  fprintf (stderr, "\n");
+	  fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qpsk.symbol_rate);
+	  fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qpsk.fec_inner);
 	  break;
 	case FE_QAM:
-	  fprintf (stderr, "Event:  Frequency: %d\n",
-		   event.parameters.frequency);
-	  fprintf (stderr, "        SymbolRate: %d\n",
-		   event.parameters.u.qam.symbol_rate);
-	  fprintf (stderr, "        FEC_inner:  %d\n",
-		   event.parameters.u.qam.fec_inner);
+	  fprintf (stderr, "  Frontend Type: QAM\n");
+	  fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
+	  fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qam.symbol_rate);
+	  fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qam.fec_inner);
 	  break;
 	default:
 	  break;
@@ -189,27 +187,28 @@ check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
 
       strength = 0;
       ioctl (fd_frontend, FE_READ_BER, &strength);
-      fprintf (stderr, "Bit error rate: %d\n", strength);
+      fprintf (stderr, "  Bit error rate: %d\n", strength);
 
       strength = 0;
       ioctl (fd_frontend, FE_READ_SIGNAL_STRENGTH, &strength);
-      fprintf (stderr, "Signal strength: %d\n", strength);
+      fprintf (stderr, "  Signal strength: %d\n", strength);
 
       strength = 0;
       ioctl (fd_frontend, FE_READ_SNR, &strength);
-      fprintf (stderr, "SNR: %d\n", strength);
+      fprintf (stderr, "  SNR: %d\n", strength);
 
       festatus = 0;
       ioctl (fd_frontend, FE_READ_STATUS, &festatus);
       print_status (stderr, festatus);
-    }
-  else
-    {
-      fprintf (stderr,
-	       "Not able to lock to the signal on the given frequency\n");
-      return -1;
-    }
-  return 0;
+      
+    } else {
+		fprintf(stderr, "Not able to lock to the signal on the given frequency\n");
+		return -1;
+	}
+    
+    fprintf(stderr, "\n");
+    
+	return 0;
 }
 
 
@@ -246,10 +245,10 @@ tune_it (int fd_frontend, fe_settings_t * set)
       feparams.u.ofdm.transmission_mode = set->transmission_mode;
       feparams.u.ofdm.guard_interval = set->guard_interval;
       feparams.u.ofdm.hierarchy_information = HIERARCHY_DEFAULT;
-      fprintf (stderr, "tuning DVB-T to %d Hz\n", set->freq);
+      fprintf (stderr, "Tuning DVB-T to %d\n", set->freq);
       break;
     case FE_QPSK:
-      fprintf (stderr, "tuning DVB-S to %d Hz, Pol:%c Srate=%d, 22kHz=%s\n",
+      fprintf (stderr, "Tuning DVB-S to %d, Pol:%c Srate=%d, 22kHz=%s\n",
 	       set->freq, set->polarity, set->srate,
 	       set->tone == SEC_TONE_ON ? "on" : "off");
       if ((set->polarity == 'h') || (set->polarity == 'H'))
@@ -300,7 +299,7 @@ tune_it (int fd_frontend, fe_settings_t * set)
 	}
       break;
     case FE_QAM:
-      fprintf (stderr, "tuning DVB-C to %d, srate=%d\n", set->freq, set->srate);
+      fprintf (stderr, "Tuning DVB-C to %d, srate=%d\n", set->freq, set->srate);
       feparams.frequency = set->freq;
       feparams.inversion = INVERSION_OFF;
       feparams.u.qam.symbol_rate = set->srate;
@@ -308,7 +307,7 @@ tune_it (int fd_frontend, fe_settings_t * set)
       feparams.u.qam.modulation = set->modulation;
       break;
     default:
-      fprintf (stderr, "Unknown FE type. Aborting\n");
+      fprintf (stderr, "Unknown frontend type. Aborting.\n");
       exit (-1);
     }
   usleep (100000);

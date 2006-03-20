@@ -1,4 +1,4 @@
-bin_PROGRAMS = dvbshout ts2es
+bin_PROGRAMS = dvbshout
 
 dvbshout_SOURCES = \
 	dvbshout.h \
@@ -6,9 +6,4 @@ dvbshout_SOURCES = \
 	parse_config.c \
 	pes.c \
 	tune.c
-
-ts2es_SOURCES = \
-	pes.c \
-	dvbshout.h \
-	ts2es.c
 
