@@ -2,9 +2,39 @@ dvbshout
 ========
 Nicholas J. Humfrey <njh@aelius.com>
 
+
+dvbshout takes an MPEG transport stream from a DVB card, 
+extracts audio channels from stream, and sends the audio to
+an Icecast/Shoutcast server.
+
 For the latest version of dvbshout, please see:
 http://www.ecs.soton.ac.uk/~njh/dvbshout/
 
 It is released under the GPL licence, see COPYING for details.
 
 
+
+Configuration
+=============
+
+dvbshout is configured using a single configuration file. 
+A script called 'scan2dvbshout.pl' is provided to convert 
+a channels.conf file (as created by the 'scan' DVB utility) to a 
+skeleton dvbshout.conf. An example configuration file is also included.
+
+The [server] section of the configuration file contains the Icecast/Shoutcast 
+server settings. The [tuning] section contains the settings for tuning in the
+DVB device. There are then multiple [channel] sections for each of the channels 
+you wish to send to the server. 
+
+The 'dvbshout' binary takes a single parameter, the location of its 
+configuration file.
+
+
+
+TODO
+====
+
+More error checking of incoming streams. 
+Add RTP support.
+Quiet/verbose command line switches.
