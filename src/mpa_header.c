@@ -121,30 +121,30 @@ static void parse_header(mpa_header_t *mh, u_int32_t header)
 // For debugging
 void mpa_header_print( mpa_header_t *mh )
 {
-	if (mh->version==1)			fprintf(stderr, "version=MPEG-1\n");
-	else if (mh->version==2)	fprintf(stderr, "version=MPEG-2\n");
-	else if (mh->version==3)	fprintf(stderr, "version=MPEG-2.5\n");
-	else 						fprintf(stderr, "version=unknown\n");
+	if (mh->version==1)			fprintf(stderr, "  version=MPEG-1\n");
+	else if (mh->version==2)	fprintf(stderr, "  version=MPEG-2\n");
+	else if (mh->version==3)	fprintf(stderr, "  version=MPEG-2.5\n");
+	else 						fprintf(stderr, "  version=unknown\n");
 
-	fprintf(stderr, "layer=%d\n", mh->layer);
+	fprintf(stderr, "  layer=%d\n", mh->layer);
 	
-	if (mh->mode==MPA_MODE_STEREO)		fprintf(stderr, "mode=Stereo\n");
-	else if (mh->mode==MPA_MODE_JOINT)	fprintf(stderr, "mode=Joint Stereo\n");
-	else if (mh->mode==MPA_MODE_DUAL)	fprintf(stderr, "mode=Dual\n");
-	else if (mh->mode==MPA_MODE_MONO)	fprintf(stderr, "mode=Mono\n");
-	else 								fprintf(stderr, "mode=unknown\n");
+	if (mh->mode==MPA_MODE_STEREO)		fprintf(stderr, "  mode=Stereo\n");
+	else if (mh->mode==MPA_MODE_JOINT)	fprintf(stderr, "  mode=Joint Stereo\n");
+	else if (mh->mode==MPA_MODE_DUAL)	fprintf(stderr, "  mode=Dual\n");
+	else if (mh->mode==MPA_MODE_MONO)	fprintf(stderr, "  mode=Mono\n");
+	else 								fprintf(stderr, "  mode=unknown\n");
 
-	fprintf(stderr, "error_protection=%d\n", mh->error_protection);
-	fprintf(stderr, "padding=%d\n", mh->padding);
-	fprintf(stderr, "extension=%d\n", mh->extension);
-	fprintf(stderr, "mode_ext=%d\n", mh->mode_ext);
-	fprintf(stderr, "copyright=%d\n", mh->copyright);
-	fprintf(stderr, "original=%d\n", mh->original);
-	fprintf(stderr, "channels=%d\n", mh->channels);
-	fprintf(stderr, "bitrate=%d\n", mh->bitrate);
-	fprintf(stderr, "samplerate=%d\n", mh->samplerate);
-	fprintf(stderr, "samples=%d\n", mh->samples);
-	fprintf(stderr, "framesize=%d\n", mh->framesize);
+	fprintf(stderr, "  error_protection=%d\n", mh->error_protection);
+	fprintf(stderr, "  padding=%d\n", mh->padding);
+	fprintf(stderr, "  extension=%d\n", mh->extension);
+	fprintf(stderr, "  mode_ext=%d\n", mh->mode_ext);
+	fprintf(stderr, "  copyright=%d\n", mh->copyright);
+	fprintf(stderr, "  original=%d\n", mh->original);
+	fprintf(stderr, "  channels=%d\n", mh->channels);
+	fprintf(stderr, "  bitrate=%d\n", mh->bitrate);
+	fprintf(stderr, "  samplerate=%d\n", mh->samplerate);
+	fprintf(stderr, "  samples=%d\n", mh->samples);
+	fprintf(stderr, "  framesize=%d\n", mh->framesize);
 }
 
 
@@ -152,11 +152,18 @@ void mpa_header_print( mpa_header_t *mh )
 // returns 1 if valid, or 0 if invalid
 int mpa_header_parse( const unsigned char* buf, mpa_header_t *mh)
 {
-	u_int32_t head =
-	    ((u_int32_t)buf[0] << 24) | 
-		((u_int32_t)buf[1] << 16) |
-		((u_int32_t)buf[2] << 8)  |
-		((u_int32_t)buf[3]);
+	u_int32_t head;
+		
+	/* Quick check */
+	if (buf[0] != 0xFF)
+		return 0;
+
+	/* Put the first four bytes into an integer */
+	head = ((u_int32_t)buf[0] << 24) | 
+		   ((u_int32_t)buf[1] << 16) |
+		   ((u_int32_t)buf[2] << 8)  |
+		   ((u_int32_t)buf[3]);
+
 
 	/* fill out the header struct */
 	parse_header(mh, head);

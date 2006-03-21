@@ -272,6 +272,7 @@ int parse_config( char *filepath )
 				chan->num = channel_count;
 				chan->shout = shout_new();
 				chan->stream_id = 0;
+				chan->fd = -1;
 				
 				strcpy( section, ptr );
 				channels[ channel_count ] = chan;

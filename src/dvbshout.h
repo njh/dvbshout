@@ -30,6 +30,9 @@
 // Libshout include
 #include <shout/shout.h>
 
+#include "sfifo.h"
+#include "mpa_header.h"
+
 
 
 /* DVB-S */
@@ -123,7 +126,11 @@ typedef struct shout_channel {
 	int apid;				// Packet Identifier of audio stream
 	int stream_id;			// PES stream ID
 	int64_t count;			// Number of packets received
+	
 	shout_t *shout;			// libshout structure
+	mpa_header_t mpah;		// Parsed MPEG audio header
+	sfifo_t *fifo;			// FIFO
+	int synced;				// Have MPA sync?
 	
 	size_t pes_remaining;	// Number of bytes remaining in current PES packet
 

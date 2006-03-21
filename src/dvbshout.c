@@ -126,41 +126,30 @@ static const char* shout_protocol_name(int protocol)
 }
 
 
-static void connect_shout_channels()
+static void connect_shout_channel( shout_channel_t *chan )
 {
-	int result, i;
+	shout_t *shout =  chan->shout;
+	int result;
 	
-	fprintf(stderr, "Connecting to %s server:\n", 
-		shout_protocol_name( shout_server.protocol ));
-	
-	for( i=0; i< channel_count; i++ ) {
-		shout_channel_t *chan =  channels[ i ];
-		shout_t *shout =  chan->shout;
-		
-		// Invalidate the file descriptor for the channel
-		chan->fd = -1;
 
-		// Set server parameters
-		shout_set_host( shout, shout_server.host );
-		shout_set_port( shout, shout_server.port );
-		shout_set_user( shout, shout_server.user );
-		shout_set_password( shout, shout_server.password );
-		shout_set_protocol( shout, shout_server.protocol );
-		shout_set_format( shout, SHOUT_FORMAT_MP3 );
-		
-		// Connect!
-		fprintf(stderr, "  http://%s:%d%s\n",
-			shout_get_host( shout ), shout_get_port( shout ), shout_get_mount( shout ));
-			
-		result = shout_open( shout );
-		if (result != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"  Failed to connect to server: %s.\n", shout_get_error(shout));
-			exit(-1);
-		}
-		
-	}
+	// Set server parameters
+	shout_set_host( shout, shout_server.host );
+	shout_set_port( shout, shout_server.port );
+	shout_set_user( shout, shout_server.user );
+	shout_set_password( shout, shout_server.password );
+	shout_set_protocol( shout, shout_server.protocol );
+	shout_set_format( shout, SHOUT_FORMAT_MP3 );
 	
-	fprintf(stderr,"\n");
+	// Connect!
+	fprintf(stderr, "  http://%s:%d%s\n",
+		shout_get_host( shout ), shout_get_port( shout ), shout_get_mount( shout ));
+		
+	result = shout_open( shout );
+	if (result != SHOUTERR_SUCCESS) {
+		fprintf(stderr,"  Failed to connect to server: %s.\n", shout_get_error(shout));
+		exit(-1);
+	}
+		
 }
 
 
@@ -250,34 +239,104 @@ void process_ts_packets( int fd_dvr )
 			
 			// Start of a PES header?
 			if ( TS_PACKET_PAYLOAD_START(buf) ) {
-			
-				es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
-					
-			} else {
-
-				if (chan->stream_id) {
-					// Don't output any data until we have seen a PES header
-					es_ptr = pes_ptr;
-					es_len = pes_len;
 				
-					// Are we are the end of the PES packet?
-					if (es_len>chan->pes_remaining) {
-						es_len=chan->pes_remaining;
+				// Parse the PES header
+				es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
+									
+			} else if (chan->stream_id) {
+			
+				// Don't output any data until we have seen a PES header
+				es_ptr = pes_ptr;
+				es_len = pes_len;
+			
+				// Are we are the end of the PES packet?
+				if (es_len>chan->pes_remaining) {
+					es_len=chan->pes_remaining;
+				}
+				
+			}
+			
+			// Subtract the amount remaining in current PES packet
+			chan->pes_remaining -= es_len;
+
+			
+			// Got some data to write out?
+			if (es_ptr) {
+			
+				// Try and sync MPEG audio stream
+				while (!chan->synced && es_len>=4) {
+				
+					// Valid header?
+					if (mpa_header_parse(es_ptr, &chan->mpah)) {
+					
+						fprintf(stderr, "Found start of MPEG audio header for pid %d\n", pid );
+						chan->synced = 1;
+						mpa_header_print( &chan->mpah );
+						
+					} else {
+						es_len--;
+						es_ptr++;
+					}
+				}
+				
+				
+				// If stream is syced then put data info FIFO
+				if (chan->synced) {
+				
+					// Create FIFO
+					if (chan->fifo==NULL) {
+						chan->fifo = malloc( sizeof( sfifo_t ) );
+						if (chan->fifo == NULL) {
+							perror("failed to allocate memory for sfifo_t");
+							exit(-1);
+						}
+						
+						// Enough for two frames of MPEG audio
+						if (sfifo_init( chan->fifo, chan->mpah.framesize * 2 ))
+						{
+							fprintf(stderr, "failed to initialise FIFO\n");
+							exit(-1);
+						}
+					}
+				
+					// Write data to FIFO
+					if (sfifo_write( chan->fifo, es_ptr, es_len) != es_len) {
+						fprintf(stderr, "Failed to write to FIFO.\n" );
 					}
 				}
 			}
 			
-			// Got some data to write out?
-			if (es_ptr) {
-				int result = shout_send_raw( chan->shout, es_ptr, es_len );
+			
+			// Got enough to send packet?
+			if (chan->fifo && sfifo_used( chan->fifo ) > chan->mpah.framesize ) {
+				unsigned char mybuf[2048];
+				int framesize = chan->mpah.framesize;
+				int result;
+				
+				//fprintf(stderr, "Got enough for a frame of audio.\n");
+
+				if (sfifo_read( chan->fifo, mybuf, framesize ) != framesize)
+				{
+					fprintf(stderr, "Failed to read from FIFO.\n" );
+				}
+				
+				// Does server need connecting ?
+				if (shout_get_connected( chan->shout ) == SHOUTERR_UNCONNECTED) {
+					connect_shout_channel( chan );
+				}
+			
+				
+				result = shout_send_raw( chan->shout, mybuf, framesize );
 				if (result < 0) {
 					fprintf(stderr, "Error: failed to send data to server for PID %d.\n", pid);
 					fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
 					break;
 				}
+
 				//fwrite( es_ptr, es_len, 1, stdout );
-				chan->pes_remaining -= es_len;
 			}
+			
+
 			
 		} else {
 			fprintf(stderr, "Error: don't know anything about PID %d.\n", pid);
@@ -351,10 +410,7 @@ int main(int argc, char **argv)
 	set_ts_filters();
 	
 
-  	// Connect to the Icecast server
- 	connect_shout_channels();
-  
-  
+
   	// Read and process TS packets from DVR device
   	fprintf(stderr,"Running.\n");
 	process_ts_packets( fd_dvr );
