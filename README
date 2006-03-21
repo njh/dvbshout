@@ -7,6 +7,9 @@ dvbshout takes an MPEG transport stream from a DVB card,
 extracts audio channels from stream, and sends the audio to
 an Icecast/Shoutcast server.
 
+It had only been tested with DVB-S, but should also 
+work with DVB-C and DVB-T.
+
 For the latest version of dvbshout, please see:
 http://www.ecs.soton.ac.uk/~njh/dvbshout/
 
@@ -31,7 +34,6 @@ The 'dvbshout' binary takes a single parameter, the location of its
 configuration file.
 
 
-
 TODO
 ====
 
@@ -39,3 +41,5 @@ More error checking of incoming streams.
 Add RTP support.
 Quiet/verbose command line switches.
 Add reporting of audio format to server.
+
+
