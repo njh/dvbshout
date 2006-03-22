@@ -30,7 +30,6 @@
 // Libshout include
 #include <shout/shout.h>
 
-#include "sfifo.h"
 #include "mpa_header.h"
 
 
@@ -71,7 +70,6 @@
 
 // Maximum allowed PID value
 #define STR_BUF_SIZE			1025
-
 
 
 
@@ -123,14 +121,17 @@ typedef struct shout_channel {
 	int num;				// channel number
 	char name[STR_BUF_SIZE];// channel name
 	int fd;					// debux file descriptor
-	int apid;				// Packet Identifier of audio stream
+	int pid;				// Packet Identifier of audio stream
 	int stream_id;			// PES stream ID
-	int64_t count;			// Number of packets received
 	
 	shout_t *shout;			// libshout structure
+
 	mpa_header_t mpah;		// Parsed MPEG audio header
-	sfifo_t *fifo;			// FIFO
 	int synced;				// Have MPA sync?
+	
+	unsigned char* buf;		// MPEG Audio Buffer (ready for sending)
+	int buf_size;			// Total size of MPEG Audio Buffer
+	int buf_used;			// Amount of buffer used
 	
 	size_t pes_remaining;	// Number of bytes remaining in current PES packet
 

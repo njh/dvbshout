@@ -98,15 +98,15 @@ static void set_ts_filters()
 
 	for (i=0;i<channel_count;i++) {
 	
-		fprintf(stderr,"  %d: %s\n", channels[i]->apid, channels[i]->name);
-		pesFilterParams.pid     = channels[i]->apid;
+		fprintf(stderr,"  %d: %s\n", channels[i]->pid, channels[i]->name);
+		pesFilterParams.pid     = channels[i]->pid;
 		pesFilterParams.input   = DMX_IN_FRONTEND;
 		pesFilterParams.output  = DMX_OUT_TS_TAP;
 		pesFilterParams.pes_type = DMX_PES_OTHER;
 		pesFilterParams.flags   = DMX_IMMEDIATE_START;
 		
 		if (ioctl(channels[i]->fd, DMX_SET_PES_FILTER, &pesFilterParams) < 0)  {
-			fprintf(stderr,"Failed to set filter for %i: ",channels[i]->apid);
+			fprintf(stderr,"Failed to set filter for %i: ",channels[i]->pid);
 			perror("DMX SET PES FILTER");
 		}
 	}
@@ -166,15 +166,126 @@ static void parse_args(int argc, char **argv)
 	}
 }
 
+
+static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_channel_t *chan, int start_of_pes ) 
+{
+	unsigned char* es_ptr=NULL;
+	size_t es_len=0;
+	
+	
+	// Start of a PES header?
+	if ( start_of_pes ) {
+		
+		// Parse the PES header
+		es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
+							
+	} else if (chan->stream_id) {
+	
+		// Don't output any data until we have seen a PES header
+		es_ptr = pes_ptr;
+		es_len = pes_len;
+	
+		// Are we are the end of the PES packet?
+		if (es_len>chan->pes_remaining) {
+			es_len=chan->pes_remaining;
+		}
+		
+	}
+	
+	// Subtract the amount remaining in current PES packet
+	chan->pes_remaining -= es_len;
+
+	
+	// Got some data to write out?
+	if (es_ptr) {
+	
+		// Scan through Elementary Stream (ES) 
+		// and try and find MPEG audio stream header
+		while (!chan->synced && es_len>=4) {
+		
+			// Valid header?
+			if (mpa_header_parse(es_ptr, &chan->mpah)) {
+			
+				fprintf(stderr, "Found start of MPEG audio header for pid %d\n", chan->pid );
+				chan->synced = 1;
+				mpa_header_print( &chan->mpah );
+				
+				// Make sure buffer is big enough
+				chan->buf_size = chan->mpah.framesize + TS_PACKET_SIZE;
+				chan->buf = realloc( chan->buf, chan->buf_size );
+				if (chan->buf==NULL) {
+					perror("Failed to allocate memory for MPEG Audio buffer");
+					exit(-1);
+				}
+				
+			} else {
+				es_len--;
+				es_ptr++;
+			}
+		}
+		
+		
+		// If stream is synced then put data info buffer
+		if (chan->synced) {
+		
+			// Check that there is space
+			if (chan->buf_used + es_len > chan->buf_size) {
+				fprintf(stderr, "Error: buffer isn't big enough.\n" );
+				exit(-1);
+			}
+		
+			// Copy data into the buffer
+			memcpy( chan->buf + chan->buf_used, es_ptr, es_len);
+			chan->buf_used += es_len;
+		}
+	}
+	
+	
+	// Got enough to send packet?
+	if (chan->buf_used > chan->mpah.framesize ) {
+		int result;
+		
+		// Ensure a MPEG Audio frame starts here
+		if (chan->buf[0] != 0xFF) {
+			fprintf(stderr, "Error: lost MPEG Audio sync for PID %d.\n", chan->pid);
+			chan->synced = 0;
+			chan->buf_used = 0;
+			return;
+		}
+		
+		// Does server need connecting ?
+		if (shout_get_connected( chan->shout ) == SHOUTERR_UNCONNECTED) {
+			connect_shout_channel( chan );
+		}
+	
+		// Send the data to the shoutcast server
+		result = shout_send_raw( chan->shout, chan->buf, chan->mpah.framesize );
+		if (result < 0) {
+			fprintf(stderr, "Error: failed to send data to server for PID %d.\n", chan->pid);
+			fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
+			exit(-1);
+		}
+		
+		// Move and remaining memory to the start of the buffer
+		chan->buf_used -= chan->mpah.framesize;
+		memmove( chan->buf, chan->buf+chan->mpah.framesize, chan->buf_used );
+		
+
+		//fwrite( es_ptr, es_len, 1, stdout );
+	}
+}
+
+
+
 void process_ts_packets( int fd_dvr )
 {
 	unsigned char buf[TS_PACKET_SIZE];
 	unsigned char* pes_ptr=NULL;
+	unsigned int pid=0;
 	size_t pes_len;
 	int bytes_read;
 
 	while ( !Interrupted ) {
-		unsigned int pid=0;
 		
 		bytes_read = read(fd_dvr,buf,TS_PACKET_SIZE);
 		if (bytes_read==0) continue;
@@ -230,113 +341,12 @@ void process_ts_packets( int fd_dvr )
 		//	fwrite( buf, TS_PACKET_SIZE, 1, stdout );
 		//}
 
+
 		// Check we know about the payload
 		if (channel_map[ pid ]) {
-			shout_channel_t *chan = channel_map[ pid ];
-			unsigned char* es_ptr=NULL;
-			size_t es_len=0;
-			
-			
-			// Start of a PES header?
-			if ( TS_PACKET_PAYLOAD_START(buf) ) {
-				
-				// Parse the PES header
-				es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
-									
-			} else if (chan->stream_id) {
-			
-				// Don't output any data until we have seen a PES header
-				es_ptr = pes_ptr;
-				es_len = pes_len;
-			
-				// Are we are the end of the PES packet?
-				if (es_len>chan->pes_remaining) {
-					es_len=chan->pes_remaining;
-				}
-				
-			}
-			
-			// Subtract the amount remaining in current PES packet
-			chan->pes_remaining -= es_len;
-
-			
-			// Got some data to write out?
-			if (es_ptr) {
-			
-				// Try and sync MPEG audio stream
-				while (!chan->synced && es_len>=4) {
-				
-					// Valid header?
-					if (mpa_header_parse(es_ptr, &chan->mpah)) {
-					
-						fprintf(stderr, "Found start of MPEG audio header for pid %d\n", pid );
-						chan->synced = 1;
-						mpa_header_print( &chan->mpah );
-						
-					} else {
-						es_len--;
-						es_ptr++;
-					}
-				}
-				
-				
-				// If stream is syced then put data info FIFO
-				if (chan->synced) {
-				
-					// Create FIFO
-					if (chan->fifo==NULL) {
-						chan->fifo = malloc( sizeof( sfifo_t ) );
-						if (chan->fifo == NULL) {
-							perror("failed to allocate memory for sfifo_t");
-							exit(-1);
-						}
-						
-						// Enough for two frames of MPEG audio
-						if (sfifo_init( chan->fifo, chan->mpah.framesize * 2 ))
-						{
-							fprintf(stderr, "failed to initialise FIFO\n");
-							exit(-1);
-						}
-					}
-				
-					// Write data to FIFO
-					if (sfifo_write( chan->fifo, es_ptr, es_len) != es_len) {
-						fprintf(stderr, "Failed to write to FIFO.\n" );
-					}
-				}
-			}
-			
-			
-			// Got enough to send packet?
-			if (chan->fifo && sfifo_used( chan->fifo ) > chan->mpah.framesize ) {
-				unsigned char mybuf[2048];
-				int framesize = chan->mpah.framesize;
-				int result;
-				
-				//fprintf(stderr, "Got enough for a frame of audio.\n");
-
-				if (sfifo_read( chan->fifo, mybuf, framesize ) != framesize)
-				{
-					fprintf(stderr, "Failed to read from FIFO.\n" );
-				}
-				
-				// Does server need connecting ?
-				if (shout_get_connected( chan->shout ) == SHOUTERR_UNCONNECTED) {
-					connect_shout_channel( chan );
-				}
-			
-				
-				result = shout_send_raw( chan->shout, mybuf, framesize );
-				if (result < 0) {
-					fprintf(stderr, "Error: failed to send data to server for PID %d.\n", pid);
-					fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
-					break;
-				}
-
-				//fwrite( es_ptr, es_len, 1, stdout );
-			}
-			
-
+		
+			// Extract PES payload and put it in FIFO
+			extract_pes_payload( pes_ptr, pes_len, channel_map[ pid ], TS_PACKET_PAYLOAD_START(buf) );
 			
 		} else {
 			fprintf(stderr, "Error: don't know anything about PID %d.\n", pid);
@@ -424,6 +434,7 @@ int main(int argc, char **argv)
 	// Clean up
 	for (i=0;i<channel_count;i++) {
 		if (channels[i]->fd != -1) close(channels[i]->fd);
+		if (channels[i]->buf) free( channels[i]->buf );
 		if (channels[i]->shout) {
 			shout_close( channels[i]->shout );
 			shout_free( channels[i]->shout );

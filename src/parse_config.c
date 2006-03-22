@@ -165,18 +165,18 @@ static void process_statement_channel( char* name, char* value, int line_num )
 	} else if (strcmp( "audio_pid", name ) == 0) { 
 	
 		// Check PID is valid
-		chan->apid = atoi( value );
-		if (chan->apid == 0) {
+		chan->pid = atoi( value );
+		if (chan->pid == 0) {
 			fprintf(stderr,"Error parsing configuation line %d: invalid PID\n", line_num);
 			exit(-1);
 		}
 		
 		// Add channel to the channel map
-		if( channel_map[ chan->apid ] ) {
+		if( channel_map[ chan->pid ] ) {
 			fprintf(stderr,"Error parsing configuation line %d: duplicate PID\n", line_num);
 			exit(-1);
 		} else {
-			channel_map[ chan->apid ] = chan;
+			channel_map[ chan->pid ] = chan;
 		}
 		
 	} else if (strcmp( "genre", name ) == 0) { 

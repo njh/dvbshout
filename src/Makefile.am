@@ -7,7 +7,5 @@ dvbshout_SOURCES = \
 	mpa_header.h \
 	parse_config.c \
 	pes.c \
-	sfifo.c \
-	sfifo.h \
 	tune.c
 
