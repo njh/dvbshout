@@ -115,30 +115,34 @@ static void set_ts_filters()
 }
 
 
-static const char* shout_protocol_name(int protocol)
-{
-	switch(protocol) {
-		case SHOUT_PROTOCOL_HTTP: return "Icecast 2";
-		case SHOUT_PROTOCOL_XAUDIOCAST: return "Icecast 1";
-		case SHOUT_PROTOCOL_ICY: return "ShoutCast";
-		default: return "Unknown";
-	}
-}
-
 
 static void connect_shout_channel( shout_channel_t *chan )
 {
 	shout_t *shout =  chan->shout;
+	char string[STR_BUF_SIZE];
 	int result;
 	
 
 	// Set server parameters
+	shout_set_agent( shout, PACKAGE_STRING );
 	shout_set_host( shout, shout_server.host );
 	shout_set_port( shout, shout_server.port );
 	shout_set_user( shout, shout_server.user );
 	shout_set_password( shout, shout_server.password );
 	shout_set_protocol( shout, shout_server.protocol );
 	shout_set_format( shout, SHOUT_FORMAT_MP3 );
+
+
+	// Add information about the audio format
+	snprintf(string, STR_BUF_SIZE, "%d", chan->mpah.bitrate );
+	shout_set_audio_info( shout, SHOUT_AI_BITRATE, string);
+	
+	snprintf(string, STR_BUF_SIZE, "%d", chan->mpah.samplerate );
+	shout_set_audio_info( shout, SHOUT_AI_SAMPLERATE, string);
+	
+	snprintf(string, STR_BUF_SIZE, "%d", chan->mpah.channels );
+	shout_set_audio_info( shout, SHOUT_AI_CHANNELS, string);
+	
 	
 	// Connect!
 	fprintf(stderr, "  http://%s:%d%s\n",
