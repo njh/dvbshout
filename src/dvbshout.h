@@ -30,6 +30,9 @@
 // Libshout include
 #include <shout/shout.h>
 
+// oRTP include
+#include <ortp/ortp.h>
+
 #include "mpa_header.h"
 
 
@@ -53,11 +56,23 @@
 #define GUARD_INTERVAL_DEFAULT      GUARD_INTERVAL_1_32
 #define HIERARCHY_DEFAULT           HIERARCHY_NONE
 
-
-
 #if HIERARCHY_DEFAULT == HIERARCHY_NONE && !defined (LP_CODERATE_DEFAULT)
 #define LP_CODERATE_DEFAULT (0) /* unused if HIERARCHY_NONE */
 #endif
+
+/* Defauls for shout server */
+#define SERVER_PORT_DEFAULT				(8000)
+#define SERVER_USER_DEFAULT				"source"
+#define SERVER_PASSWORD_DEFAULT			"hackme"
+#define SERVER_PROTOCOL_DEFAULT			SHOUT_PROTOCOL_HTTP
+
+/* Defaults for Multicast */
+#define MULTICAST_TTL_DEFAULT			(15)
+#define MULTICAST_PORT_DEFAULT			(5004)
+#define MULTICAST_INTERFACE_DEFAULT		"eth0"
+#define MULTICAST_MTU_DEFAULT			(1450)
+ 
+
 
 // The size of MPEG2 TS packets
 #define TS_PACKET_SIZE			188
@@ -70,6 +85,9 @@
 
 // Maximum allowed PID value
 #define STR_BUF_SIZE			1025
+
+// Maximum allowed PID value
+#define RTP_MPEG_AUDIO_PT		14
 
 
 
@@ -116,13 +134,15 @@
 
 
 /* Structure containing single channel */
-typedef struct shout_channel {
+typedef struct shout_channel_s {
 
 	int num;				// channel number
 	char name[STR_BUF_SIZE];// channel name
 	int fd;					// debux file descriptor
 	int pid;				// Packet Identifier of audio stream
 	int stream_id;			// PES stream ID
+
+	size_t pes_remaining;	// Number of bytes remaining in current PES packet
 	
 	shout_t *shout;			// libshout structure
 
@@ -133,13 +153,32 @@ typedef struct shout_channel {
 	int buf_size;			// Total size of MPEG Audio Buffer
 	int buf_used;			// Amount of buffer used
 	
-	size_t pes_remaining;	// Number of bytes remaining in current PES packet
+	RtpSession * sess;		// Multicast RTP session
+	char multicast_ip[STR_BUF_SIZE];	// Multicast IP
+	char multicast_local[STR_BUF_SIZE];	// Local IP
+	int multicast_port;					// Multicast Port
+	int multicast_ttl;					// Multicast TTL
+	int multicast_mtu;					// Maxium Transmission Unit (of payload)
+	int multicast_ts;					// Session Timestamp
+	
+	int frames_per_packet;				// Number of MPEG audio frames per packet
+	int payload_size;					// Size of the payload
+	
 
 } shout_channel_t;
 
 
 /* Structure server settings */
-typedef struct shout_server {
+typedef struct shout_multicast_s {
+	int ttl;
+	int port;
+	int mtu;
+	char interface[STR_BUF_SIZE];
+} shout_multicast_t;
+
+
+/* Structure server settings */
+typedef struct shout_server_s {
 	char host[STR_BUF_SIZE];
 	int port;
 	char user[STR_BUF_SIZE];
@@ -150,7 +189,7 @@ typedef struct shout_server {
 
 
 /* Structure containing tuning settings */
-typedef struct fe_settings {
+typedef struct fe_settings_s {
 
 	unsigned char card;			// Card number
 	
@@ -178,6 +217,7 @@ extern fe_settings_t *fe_set;
 extern shout_channel_t *channel_map[MAX_PID_COUNT];
 extern shout_channel_t *channels[MAX_CHANNEL_COUNT];
 extern shout_server_t shout_server;
+extern shout_multicast_t shout_multicast;
 
 
 /* In tune.c */

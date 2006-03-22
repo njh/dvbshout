@@ -58,6 +58,26 @@ static void process_statement_server( char* name, char* value, int line_num )
 	
 }
 
+static void process_statement_multicast( char* name, char* value, int line_num )
+{
+
+	if (strcmp( "ttl", name ) == 0) {
+		shout_multicast.ttl = atoi( value );
+	} else if (strcmp( "port", name ) == 0) {
+		shout_multicast.port = atoi( value );
+	} else if (strcmp( "user", name ) == 0) { 
+		shout_multicast.port = atoi( value );
+	} else if (strcmp( "interface", name ) == 0) { 
+		strncpy( shout_multicast.interface, value, STR_BUF_SIZE);
+	} else if (strcmp( "mtu", name ) == 0) {
+		shout_multicast.mtu = atoi( value );
+	} else {
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
+		exit(-1);
+	}
+	
+}
+
 
 static void process_statement_tuning( char* name, char* value, int line_num )
 {
@@ -203,6 +223,18 @@ static void process_statement_channel( char* name, char* value, int line_num )
 			exit(-1);
 		}
 
+	} else if (strcmp( "multicast_ip", name ) == 0) { 
+		strncpy( chan->multicast_ip, value, STR_BUF_SIZE);
+		
+	} else if (strcmp( "multicast_port", name ) == 0) { 
+		chan->multicast_port = atoi(value);
+		
+	} else if (strcmp( "multicast_ttl", name ) == 0) { 
+		chan->multicast_ttl = atoi(value);
+		
+	} else if (strcmp( "multicast_mtu", name ) == 0) { 
+		chan->multicast_mtu = atoi(value);
+		
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
 		exit(-1);
@@ -259,6 +291,9 @@ int parse_config( char *filepath )
 			if (strcmp( ptr, "server")==0) {
 				strcpy( section, ptr );
 				
+			} else if (strcmp( ptr, "multicast")==0) {
+				strcpy( section, ptr );
+				
 			} else if (strcmp( ptr, "tuning")==0) {
 				strcpy( section, ptr );
 			
@@ -273,6 +308,11 @@ int parse_config( char *filepath )
 				chan->shout = shout_new();
 				chan->stream_id = 0;
 				chan->fd = -1;
+				
+				chan->multicast_port = shout_multicast.port;
+				chan->multicast_ttl = shout_multicast.ttl;
+				chan->multicast_mtu = shout_multicast.mtu;
+				
 				
 				strcpy( section, ptr );
 				channels[ channel_count ] = chan;
@@ -306,6 +346,8 @@ int parse_config( char *filepath )
 			
 			if (strcmp( section, "server")==0) {	
 				process_statement_server( name, value, line_num );
+			} else if (strcmp( section, "multicast")==0) {	
+				process_statement_multicast( name, value, line_num );
 			} else if (strcmp( section, "tuning")==0) {	
 				process_statement_tuning( name, value, line_num );
 			} else if (strcmp( section, "channel")==0) {	

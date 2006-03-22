@@ -51,6 +51,7 @@ typedef struct {
 int mpa_header_parse( const unsigned char* buf, mpa_header_t *mh);
 
 void mpa_header_print( mpa_header_t *mh );
+void mpa_header_debug( mpa_header_t *mh );
 
 
 

@@ -47,7 +47,7 @@ fe_settings_t *fe_set = NULL;
 shout_channel_t *channel_map[MAX_PID_COUNT];
 shout_channel_t *channels[MAX_CHANNEL_COUNT];
 shout_server_t shout_server;
-
+shout_multicast_t shout_multicast;
 
 char* frontenddev[4]={"/dev/dvb/adapter0/frontend0","/dev/dvb/adapter1/frontend0","/dev/dvb/adapter2/frontend0","/dev/dvb/adapter3/frontend0"};
 char* dvrdev[4]={"/dev/dvb/adapter0/dvr0","/dev/dvb/adapter1/dvr0","/dev/dvb/adapter2/dvr0","/dev/dvb/adapter3/dvr0"};
@@ -116,12 +116,24 @@ static void set_ts_filters()
 
 
 
-static void connect_shout_channel( shout_channel_t *chan )
+static void connect_server_channel( shout_channel_t *chan )
 {
 	shout_t *shout =  chan->shout;
 	char string[STR_BUF_SIZE];
 	int result;
-	
+
+
+	// Don't connect?
+	if (strlen(shout_server.host)==0) {
+		return;
+	}
+
+	// Already connected to server?
+	if (shout_get_connected( shout ) == SHOUTERR_CONNECTED) {
+		fprintf(stderr, "  Disconnecting from server.\n");
+		shout_close( shout );
+	}
+
 
 	// Set server parameters
 	shout_set_agent( shout, PACKAGE_STRING );
@@ -145,7 +157,7 @@ static void connect_shout_channel( shout_channel_t *chan )
 	
 	
 	// Connect!
-	fprintf(stderr, "  http://%s:%d%s\n",
+	fprintf(stderr, "  Connecting: http://%s:%d%s\n",
 		shout_get_host( shout ), shout_get_port( shout ), shout_get_mount( shout ));
 		
 	result = shout_open( shout );
@@ -154,6 +166,26 @@ static void connect_shout_channel( shout_channel_t *chan )
 		exit(-1);
 	}
 		
+}
+
+
+static RtpSession * create_multicast_session( shout_channel_t *chan )
+{
+	RtpSession *session;
+	
+	// Don't setup multicast if it isnt desired
+	if (strlen(chan->multicast_ip)==0) return NULL;
+	
+	// Connect!
+	fprintf(stderr, "  Multicast session: %s/%d/%d\n",
+		chan->multicast_ip, chan->multicast_port, chan->multicast_ttl );	
+	
+	// Create new session
+	session=rtp_session_new(RTP_SESSION_SENDONLY);
+	rtp_session_set_remote_addr(session, chan->multicast_ip, chan->multicast_port);
+	rtp_session_set_payload_type(session, RTP_MPEG_AUDIO_PT);
+
+	return session;	
 }
 
 
@@ -209,18 +241,34 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		
 			// Valid header?
 			if (mpa_header_parse(es_ptr, &chan->mpah)) {
-			
-				fprintf(stderr, "Found start of MPEG audio header for pid %d\n", chan->pid );
-				chan->synced = 1;
+
+				// Now we know bitrate etc, set things up
+				fprintf(stderr, "Synced to MPEG audio for '%s' (pid: %d)\n",  chan->name, chan->pid );
 				mpa_header_print( &chan->mpah );
+				chan->synced = 1;
+				
+				// Work out how big payload will be
+				chan->frames_per_packet = ( chan->multicast_mtu / chan->mpah.framesize );
+				chan->payload_size = chan->frames_per_packet * chan->mpah.framesize;
+				fprintf(stderr, "  Payload size: %d (%d frame of audio)\n", 
+					chan->payload_size, chan->frames_per_packet );
+				fprintf(stderr, "  Samples: %d \n",  chan->mpah.samples );
+				
 				
 				// Make sure buffer is big enough
-				chan->buf_size = chan->mpah.framesize + TS_PACKET_SIZE;
+				chan->buf_size = chan->payload_size + TS_PACKET_SIZE;
 				chan->buf = realloc( chan->buf, chan->buf_size );
 				if (chan->buf==NULL) {
-					perror("Failed to allocate memory for MPEG Audio buffer");
+					perror("Error: Failed to allocate memory for MPEG Audio buffer");
 					exit(-1);
 				}
+				
+				// (re-)connect to the server
+				connect_server_channel( chan );
+				
+				// Create multicast session
+				if (!chan->sess) 
+					chan->sess = create_multicast_session( chan );
 				
 			} else {
 				es_len--;
@@ -234,7 +282,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		
 			// Check that there is space
 			if (chan->buf_used + es_len > chan->buf_size) {
-				fprintf(stderr, "Error: buffer isn't big enough.\n" );
+				fprintf(stderr, "Error: MPEG Audio buffer overflow\n" );
 				exit(-1);
 			}
 		
@@ -246,36 +294,36 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 	
 	
 	// Got enough to send packet?
-	if (chan->buf_used > chan->mpah.framesize ) {
+	if (chan->buf_used > chan->payload_size ) {
 		int result;
 		
 		// Ensure a MPEG Audio frame starts here
 		if (chan->buf[0] != 0xFF) {
-			fprintf(stderr, "Error: lost MPEG Audio sync for PID %d.\n", chan->pid);
+			fprintf(stderr, "Warning: lost MPEG Audio sync for PID %d.\n", chan->pid);
 			chan->synced = 0;
 			chan->buf_used = 0;
 			return;
 		}
 		
-		// Does server need connecting ?
-		if (shout_get_connected( chan->shout ) == SHOUTERR_UNCONNECTED) {
-			connect_shout_channel( chan );
-		}
 	
 		// Send the data to the shoutcast server
-		result = shout_send_raw( chan->shout, chan->buf, chan->mpah.framesize );
+		result = shout_send_raw( chan->shout, chan->buf, chan->payload_size );
 		if (result < 0) {
 			fprintf(stderr, "Error: failed to send data to server for PID %d.\n", chan->pid);
 			fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
 			exit(-1);
 		}
 		
-		// Move and remaining memory to the start of the buffer
-		chan->buf_used -= chan->mpah.framesize;
-		memmove( chan->buf, chan->buf+chan->mpah.framesize, chan->buf_used );
+		// Send to multicast session
+		if( chan->sess ) {
+			rtp_session_send_with_ts(chan->sess, (char*)chan->buf, chan->payload_size, chan->multicast_ts);
+			chan->multicast_ts += (1152);
+		}
 		
-
-		//fwrite( es_ptr, es_len, 1, stdout );
+		// Move any remaining memory to the start of the buffer
+		chan->buf_used -= chan->payload_size;
+		memmove( chan->buf, chan->buf+chan->payload_size, chan->buf_used );
+		
 	}
 }
 
@@ -373,11 +421,25 @@ int main(int argc, char **argv)
 	for (i=0;i<MAX_PID_COUNT;i++) channel_map[i]=NULL;
 	for (i=0;i<MAX_CHANNEL_COUNT;i++) channels[i]=NULL;
 	memset( &shout_server, 0, sizeof(shout_server_t) );
-	shout_server.protocol = SHOUT_PROTOCOL_HTTP;
+	
+	// Default server settings
+	shout_server.port = SERVER_PORT_DEFAULT;
+	strcpy(shout_server.user, SERVER_USER_DEFAULT);
+	strcpy(shout_server.password, SERVER_PASSWORD_DEFAULT);
+	shout_server.protocol = SERVER_PROTOCOL_DEFAULT;
+	
+	// Default settings defaults
+	shout_multicast.ttl = MULTICAST_TTL_DEFAULT;
+	shout_multicast.port = MULTICAST_PORT_DEFAULT;
+	strcpy(shout_multicast.interface, MULTICAST_INTERFACE_DEFAULT);
+	shout_multicast.mtu = MULTICAST_MTU_DEFAULT;
 
 
 	// Initialise libshout
 	shout_init();
+
+	// Initialise ortp
+	ortp_init();
 	
 	
 	// Parse command line arguments
@@ -426,7 +488,6 @@ int main(int argc, char **argv)
 
 
   	// Read and process TS packets from DVR device
-  	fprintf(stderr,"Running.\n");
 	process_ts_packets( fd_dvr );
 	
 
@@ -439,6 +500,7 @@ int main(int argc, char **argv)
 	for (i=0;i<channel_count;i++) {
 		if (channels[i]->fd != -1) close(channels[i]->fd);
 		if (channels[i]->buf) free( channels[i]->buf );
+		if (channels[i]->sess) rtp_session_destroy(channels[i]->sess);
 		if (channels[i]->shout) {
 			shout_close( channels[i]->shout );
 			shout_free( channels[i]->shout );
@@ -451,6 +513,9 @@ int main(int argc, char **argv)
 
 	// Shutdown libshout
 	shout_shutdown();	
+
+	// Shutdown oRTP
+	ortp_exit();	
 
 	return(0);
 }

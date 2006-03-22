@@ -26,9 +26,14 @@ AC_C_INLINE
 dnl ############## Library Checks
 
 # Check for libshout
-PKG_CHECK_MODULES(SHOUT, shout >= 2.1)
-CFLAGS="$CFLAGS $SHOUT_CFLAGS"
-LIBS="$LIBS $SHOUT_LIBS"
+PKG_CHECK_MODULES(libshout, shout >= 2.1)
+CFLAGS="$CFLAGS $libshout_CFLAGS"
+LIBS="$LIBS $libshout_LIBS"
+
+# Check for ortp
+PKG_CHECK_MODULES(oRTP, ortp >= 0.9.1)
+CFLAGS="$CFLAGS $oRTP_CFLAGS"
+LIBS="$LIBS $oRTP_LIBS"
 
 
 dnl ############## Header Checks
