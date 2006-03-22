@@ -51,12 +51,19 @@ else {$p = 'v';}
 print OUTPUT "# dvbshout configuration file\n";
 print OUTPUT "# created ".localtime()."\n";
 print OUTPUT "#\n\n";
+
 print OUTPUT "[server]\n";
 print OUTPUT "host: localhost\n";
 print OUTPUT "port: 8000\n";
 print OUTPUT "user: source\n";
 print OUTPUT "password: hackme\n";
 print OUTPUT "protocol: icecast2\n\n";
+
+print OUTPUT "[multicast]\n";
+print OUTPUT "ttl: 127\n";
+print OUTPUT "port: 5004\n";
+print OUTPUT "mtu: 1450\n";
+print OUTPUT "interface: eth0\n\n";
 
 
 my $wrote_tuning = 0;
@@ -93,6 +100,7 @@ while(<CHANNELS>) {
 			print OUTPUT "name: $name\n";
 			print OUTPUT "mount: /dvb/$mount\n";
 			print OUTPUT "audio_pid: $apid\n";
+			print OUTPUT "multicast_ip: ".random_multicast_ip()."\n";
 			print OUTPUT "genre: Varied\n";
 			print OUTPUT "public: 0\n";
 			print OUTPUT "url:\n";
@@ -122,5 +130,15 @@ sub uk_dvbt {
 			"code_rate: 2_3\n".
 			"bandwidth: 8\n".
 			"transmission_mode: 2\n";
+}
+
+
+sub random_multicast_ip {
+	# Allocate from the 'SAP Dynamic Assignments' range
+	# 224.2.128.0-224.2.255.255
+	my $a = int(rand( 129 ))+128;
+	my $b = int(rand( 256 ));
+	
+	return "244.2.$a.$b";
 }
 
