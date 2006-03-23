@@ -42,4 +42,6 @@ Add RTP support.
 Quiet/verbose command line switches.
 Add reporting of audio format to server.
 
+Fix DVB-T/DVB-C? support
+
 

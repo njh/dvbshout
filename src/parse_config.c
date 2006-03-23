@@ -85,11 +85,11 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 	if (strcmp( "card", name ) == 0) {
 		fe_set->card = atoi( value );
 	} else if (strcmp( "frequency", name ) == 0) { 
-		fe_set->freq = atoi( value )*1000UL;
+		fe_set->freq = atoi( value );
 	} else if (strcmp( "polarity", name ) == 0) { 
 		fe_set->polarity = tolower(value[0]);
 	} else if (strcmp( "symbol_rate", name ) == 0) { 
-		fe_set->srate = atoi( value )*1000UL;
+		fe_set->srate = atoi( value );
 	} else if (strcmp( "modulation", name ) == 0) { 
 		switch( atoi( value ) ) {
 			case 16:  fe_set->modulation=QAM_16; break;
@@ -308,6 +308,7 @@ int parse_config( char *filepath )
 				chan->shout = shout_new();
 				chan->stream_id = 0;
 				chan->fd = -1;
+				chan->continuity_count = -1;
 				
 				chan->multicast_port = shout_multicast.port;
 				chan->multicast_ttl = shout_multicast.ttl;

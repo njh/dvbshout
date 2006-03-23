@@ -157,7 +157,7 @@ static void connect_server_channel( shout_channel_t *chan )
 	
 	
 	// Connect!
-	fprintf(stderr, "  Connecting: http://%s:%d%s\n",
+	fprintf(stderr, "  Connecting to: http://%s:%d%s\n",
 		shout_get_host( shout ), shout_get_port( shout ), shout_get_mount( shout ));
 		
 	result = shout_open( shout );
@@ -169,7 +169,7 @@ static void connect_server_channel( shout_channel_t *chan )
 }
 
 
-static RtpSession * create_multicast_session( shout_channel_t *chan )
+static RtpSession * create_rtp_session( shout_channel_t *chan )
 {
 	RtpSession *session;
 	
@@ -202,6 +202,21 @@ static void parse_args(int argc, char **argv)
 	}
 }
 
+static void ts_continuity_check( shout_channel_t *chan, int ts_cc ) 
+{
+	if (chan->continuity_count != ts_cc) {
+	
+		// Only display an error after we gain sync
+		if (chan->synced) {
+			fprintf(stderr, "Warning: TS continuity error (pid: %d)\n", chan->pid );
+		}
+		chan->continuity_count = ts_cc;
+	}
+
+	chan->continuity_count++;
+	if (chan->continuity_count==16)
+		chan->continuity_count=0;
+}
 
 static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_channel_t *chan, int start_of_pes ) 
 {
@@ -248,29 +263,42 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 				chan->synced = 1;
 				
 				// Work out how big payload will be
-				chan->frames_per_packet = ( chan->multicast_mtu / chan->mpah.framesize );
-				chan->payload_size = chan->frames_per_packet * chan->mpah.framesize;
-				fprintf(stderr, "  Payload size: %d (%d frame of audio)\n", 
-					chan->payload_size, chan->frames_per_packet );
-				fprintf(stderr, "  Samples: %d \n",  chan->mpah.samples );
+				if (chan->multicast_mtu < chan->mpah.framesize) {
+					fprintf(stderr, "Error: audio frame size is bigger than packet MTU.\n");
+					exit(-1);
+				} else {
+					chan->frames_per_packet = ( chan->multicast_mtu / chan->mpah.framesize );
+					chan->payload_size = chan->frames_per_packet * chan->mpah.framesize;
+					fprintf(stderr, "  RTP payload size: %d (%d frames of audio)\n", 
+						chan->payload_size, chan->frames_per_packet );
+				}
 				
 				
-				// Make sure buffer is big enough
-				chan->buf_size = chan->payload_size + TS_PACKET_SIZE;
+				// Allocate buffer to store packet in
+				chan->buf_size = chan->payload_size + TS_PACKET_SIZE + 4;
 				chan->buf = realloc( chan->buf, chan->buf_size );
+				chan->buf[0] = 0x00;
+				chan->buf[1] = 0x00;
+				chan->buf[2] = 0x00;
+				chan->buf[3] = 0x00;
+				chan->buf += 4;
 				if (chan->buf==NULL) {
 					perror("Error: Failed to allocate memory for MPEG Audio buffer");
 					exit(-1);
 				}
+				
 				
 				// (re-)connect to the server
 				connect_server_channel( chan );
 				
 				// Create multicast session
 				if (!chan->sess) 
-					chan->sess = create_multicast_session( chan );
+					chan->sess = create_rtp_session( chan );
+				
+				fprintf(stderr, "\n");
 				
 			} else {
+				// Skip byte
 				es_len--;
 				es_ptr++;
 			}
@@ -307,17 +335,23 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		
 	
 		// Send the data to the shoutcast server
-		result = shout_send_raw( chan->shout, chan->buf, chan->payload_size );
-		if (result < 0) {
-			fprintf(stderr, "Error: failed to send data to server for PID %d.\n", chan->pid);
-			fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
-			exit(-1);
+		if (1) {
+			result = shout_send_raw( chan->shout, chan->buf, chan->payload_size );
+			if (result < 0) {
+				fprintf(stderr, "Error: failed to send data to server for PID %d.\n", chan->pid);
+				fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
+				exit(-1);
+			}
 		}
 		
 		// Send to multicast session
 		if( chan->sess ) {
-			rtp_session_send_with_ts(chan->sess, (char*)chan->buf, chan->payload_size, chan->multicast_ts);
-			chan->multicast_ts += (1152);
+			rtp_session_send_with_ts(chan->sess, (char*)chan->buf-4, chan->payload_size+4, chan->multicast_ts);
+			
+			// Timestamp for MPEG Audio is based on fixed 90kHz clock rate
+			chan->multicast_ts += ((chan->mpah.samples * 90000) / chan->mpah.samplerate)
+			                * chan->frames_per_packet;
+
 		}
 		
 		// Move any remaining memory to the start of the buffer
@@ -366,10 +400,6 @@ void process_ts_packets( int fd_dvr )
 			break;
 		}	
 
-		// Continuity check
-		// FIXME:
-		//fprintf(stderr, "TS_PACKET_CONT_COUNT: %d.\n", TS_PACKET_CONT_COUNT(buf) );
-
 		// Location of and size of PES payload
 		pes_ptr = &buf[4];
 		pes_len = TS_PACKET_SIZE - 4;
@@ -382,20 +412,15 @@ void process_ts_packets( int fd_dvr )
 			continue;
 		} else if (TS_PACKET_ADAPTATION(buf)==0x3) {
 			// Adaptation field AND payload
-			fprintf(stderr, "** Adaptation field AND payload **\n" );
-			// FIXME:
-			// pes_ptr += 
-			// pes_len -= 
+			pes_ptr += (TS_PACKET_ADAPT_LEN(buf) + 1);
+			pes_len -= (TS_PACKET_ADAPT_LEN(buf) + 1);
 		}
-
-		// Output the TS
-		//if (pid == 2314) {
-		//	fwrite( buf, TS_PACKET_SIZE, 1, stdout );
-		//}
 
 
 		// Check we know about the payload
 		if (channel_map[ pid ]) {
+			// Continuity check
+			ts_continuity_check( channel_map[ pid ], TS_PACKET_CONT_COUNT(buf) );
 		
 			// Extract PES payload and put it in FIFO
 			extract_pes_payload( pes_ptr, pes_len, channel_map[ pid ], TS_PACKET_PAYLOAD_START(buf) );
@@ -441,14 +466,9 @@ int main(int argc, char **argv)
 	// Initialise ortp
 	ortp_init();
 	
-	
 	// Parse command line arguments
 	parse_args( argc, argv );
 	
-	
-	if (signal(SIGHUP, signal_handler) == SIG_IGN) signal(SIGHUP, SIG_IGN);
-	if (signal(SIGINT, signal_handler) == SIG_IGN) signal(SIGINT, SIG_IGN);
-	if (signal(SIGTERM, signal_handler) == SIG_IGN) signal(SIGTERM, SIG_IGN);
 
 	
 
@@ -485,6 +505,11 @@ int main(int argc, char **argv)
 	// Now we set the filters
 	set_ts_filters();
 	
+
+	// Setup signal handlers
+	if (signal(SIGHUP, signal_handler) == SIG_IGN) signal(SIGHUP, SIG_IGN);
+	if (signal(SIGINT, signal_handler) == SIG_IGN) signal(SIGINT, SIG_IGN);
+	if (signal(SIGTERM, signal_handler) == SIG_IGN) signal(SIGTERM, SIG_IGN);
 
 
   	// Read and process TS packets from DVR device

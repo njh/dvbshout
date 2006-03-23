@@ -216,11 +216,10 @@ check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
 int
 tune_it (int fd_frontend, fe_settings_t * set)
 {
-  int res;
-  struct dvb_frontend_parameters feparams;
-  struct dvb_frontend_info fe_info;
-  fe_sec_voltage_t voltage;
-
+	int res;
+	struct dvb_frontend_parameters feparams;
+	struct dvb_frontend_info fe_info;
+	fe_sec_voltage_t voltage;
 
   if ((res = ioctl (fd_frontend, FE_GET_INFO, &fe_info) < 0))
     {
@@ -234,8 +233,6 @@ tune_it (int fd_frontend, fe_settings_t * set)
   switch (fe_info.type)
     {
     case FE_OFDM:
-      if (set->freq < 1000000)
-	set->freq *= 1000UL;
       feparams.frequency = set->freq;
       feparams.inversion = INVERSION_OFF;
       feparams.u.ofdm.bandwidth = set->bandwidth;

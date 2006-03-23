@@ -103,6 +103,7 @@
 #define TS_PACKET_SCRAMBLING(b)		((b[3]&0xC0)>>6)
 #define TS_PACKET_ADAPTATION(b)		((b[3]&0x30)>>4)
 #define TS_PACKET_CONT_COUNT(b)		((b[3]&0x0F)>>0)
+#define TS_PACKET_ADAPT_LEN(b)		(b[4])
 
 
 
@@ -142,6 +143,7 @@ typedef struct shout_channel_s {
 	int pid;				// Packet Identifier of audio stream
 	int stream_id;			// PES stream ID
 
+	int continuity_count;	// TS packet continuity counter
 	size_t pes_remaining;	// Number of bytes remaining in current PES packet
 	
 	shout_t *shout;			// libshout structure
