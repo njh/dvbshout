@@ -2,21 +2,27 @@
 
 use strict;
 
+# Card number ?
+print "Card number? [0]: ";
+my $cardnum = <STDIN>+0;
 
-my @conf_paths = (
-	'.szap/channels.conf',
-	'.czap/channels.conf',
-	'.tzap/channels.conf'
-);
-
-
-my $default = '';
-foreach( @conf_paths ) {
-	my $test = $ENV{'HOME'}."/$_";
-	if (-e $test) { $default = $test; last; } 
+# Card type ?
+my $cardtype = '';
+while ($cardtype !~ /^[stc]$/) {
+	print "Card type? [S/c/t]: ";
+	$cardtype = <STDIN>; chomp($cardtype);
+	$cardtype =~ tr/A-Z/a-z/;
+	$cardtype = 's' if ($cardtype eq '');
 }
-	
 
+
+# Guess location of scan file
+my $default = $ENV{'HOME'}.'/.'.$cardtype.'zap/channels';
+$default .= "-$cardnum" if ($cardnum != 0);
+$default .= ".conf";
+
+
+# Ask for location of channels.conf
 my $channels = $ARGV[1];
 while( $channels eq '') {
 	print "Path of channels.conf? [$default]: ";
@@ -65,63 +71,83 @@ print OUTPUT "port: 5004\n";
 print OUTPUT "mtu: 1450\n";
 print OUTPUT "interface: eth0\n\n";
 
-
-my $wrote_tuning = 0;
-my $num = 0;
 my $wrote = 0;
-while(<CHANNELS>) {
-	my ($name, $freq, $polarity, $tone, $srate, $vpid, $apid, $sid) = split(/:/);
-	$num++;
-	
-	if ($freq == $f and $polarity =~ /$p/i and $apid) {
-		print "Include '$name' (Y/n)? ";
-		my $yesno = <STDIN>;
-		unless ($yesno =~ /^n/i) {
-			my $mount = $name;
-			$mount =~ tr/A-Z/a-z/;
-			$mount =~ s/\W/_/g;
-			
-			unless ($wrote_tuning) {
-			
-				print OUTPUT "[tuning]\n";
-				print OUTPUT "card: 0\n";
-				print OUTPUT "frequency: $f\n";
-				print OUTPUT "polarity: $p\n";
-				print OUTPUT "symbol_rate: $srate\n";
-				
-				# UK DVB-T defaults
-				print OUTPUT uk_dvbt();
-
-				print OUTPUT "\n\n";
-				$wrote_tuning=1;
-			}
-			
-			print OUTPUT "[channel]\n";
-			print OUTPUT "name: $name\n";
-			print OUTPUT "mount: /dvb/$mount\n";
-			print OUTPUT "audio_pid: $apid\n";
-			print OUTPUT "multicast_ip: ".random_multicast_ip()."\n";
-			print OUTPUT "genre: Varied\n";
-			print OUTPUT "public: 0\n";
-			print OUTPUT "url:\n";
-			print OUTPUT "description:\n";
-			print OUTPUT "\n";
-			
-			$wrote++;
-		}
-		
-	}
-	
+if ($cardtype eq 's') {
+	$wrote = process_dvb_s();
+} elsif ($cardtype eq 'c') {
+	$wrote = process_dvb_c();
+} elsif ($cardtype eq 't') {
+	$wrote = process_dvb_t();
 }
-
+	
 
 close(OUTPUT);
 close(CHANNELS);
 
-
 print "Wrote $wrote channels to $output\n";
 
 
+
+
+
+
+sub process_dvb_s {
+	my $wrote_tuning = 0;
+	my $num = 0;
+	my $wrote = 0;
+	while(<CHANNELS>) {
+		my ($name, $freq, $polarity, $tone, $srate, $vpid, $apid, $sid) = split(/:/);
+		$num++;
+		
+		if ($freq == $f and $polarity =~ /$p/i and $apid) {
+			print "Include '$name' (Y/n)? ";
+			my $yesno = <STDIN>;
+			unless ($yesno =~ /^n/i) {
+				my $mount = $name;
+				$mount =~ tr/A-Z/a-z/;
+				$mount =~ s/\W/_/g;
+				
+				unless ($wrote_tuning) {
+				
+					print OUTPUT "[tuning]\n";
+					print OUTPUT "card: $cardnum\n";
+					print OUTPUT "frequency: $f\n";
+					print OUTPUT "polarity: $p\n";
+					print OUTPUT "symbol_rate: $srate\n";
+				
+					print OUTPUT "\n\n";
+					$wrote_tuning=1;
+				}
+			
+				print OUTPUT "[channel]\n";
+				print OUTPUT "name: $name\n";
+				print OUTPUT "mount: /dvb/$mount\n";
+				print OUTPUT "audio_pid: $apid\n";
+				print OUTPUT "multicast_ip: ".random_multicast_ip()."\n";
+				print OUTPUT "genre: Varied\n";
+				print OUTPUT "public: 0\n";
+				print OUTPUT "url:\n";
+				print OUTPUT "description:\n";
+				print OUTPUT "\n";
+			
+				$wrote++;
+			}
+		
+		}
+	
+	}
+
+	return $wrote;
+}
+
+
+sub process_dvb_c {
+	die "DVB-C Not implemented yet.\n";
+}
+
+sub process_dvb_t {
+	die "DVB-T Not implemented yet.\n";
+}
 
 sub uk_dvbt {
 	return	"\n# United Kingdom DVB-T settings\n".
