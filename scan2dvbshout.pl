@@ -69,7 +69,7 @@ print OUTPUT "password: hackme\n";
 print OUTPUT "protocol: icecast2\n\n";
 
 print OUTPUT "[multicast]\n";
-print OUTPUT "ttl: 127\n";
+print OUTPUT "ttl: 15\n";
 print OUTPUT "port: 5004\n";
 print OUTPUT "mtu: 1450\n";
 print OUTPUT "interface: eth0\n\n";
@@ -212,11 +212,12 @@ sub print_channel {
 
 
 sub random_multicast_ip {
-	# Allocate from the 'SAP Dynamic Assignments' range
-	# 224.2.128.0-224.2.255.255
-	my $a = int(rand( 129 ))+128;
+	# Allocate from the 'Organization-Local Scope' range
+	# 239.192.000.000-239.251.255.255 
+	my $a = int(rand( 60 ))+192;
 	my $b = int(rand( 256 ));
+	my $c = int(rand( 256 ));
 	
-	return "244.2.$a.$b";
+	return "239.$a.$b.$c";
 }
 
