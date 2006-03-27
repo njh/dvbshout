@@ -33,20 +33,20 @@ static void process_statement_server( char* name, char* value, int line_num )
 {
 
 	if (strcmp( "host", name ) == 0) {
-		strncpy( shout_server.host, value, STR_BUF_SIZE);
+		strncpy( dvbshout_server.host, value, STR_BUF_SIZE);
 	} else if (strcmp( "port", name ) == 0) {
-		shout_server.port = atoi( value );
+		dvbshout_server.port = atoi( value );
 	} else if (strcmp( "user", name ) == 0) { 
-		strncpy( shout_server.user, value, STR_BUF_SIZE);
+		strncpy( dvbshout_server.user, value, STR_BUF_SIZE);
 	} else if (strcmp( "password", name ) == 0) { 
-		strncpy( shout_server.password, value, STR_BUF_SIZE);
+		strncpy( dvbshout_server.password, value, STR_BUF_SIZE);
 	} else if (strcmp( "protocol", name ) == 0) {
 		if (strcmp( "http", value )==0 || strcmp( "icecast2", value )==0) {
-			shout_server.protocol = SHOUT_PROTOCOL_HTTP;
+			dvbshout_server.protocol = SHOUT_PROTOCOL_HTTP;
 		} else if (strcmp( "xaudiocast", value )==0 || strcmp( "icecast1", value )==0) {
-			shout_server.protocol = SHOUT_PROTOCOL_XAUDIOCAST;
+			dvbshout_server.protocol = SHOUT_PROTOCOL_XAUDIOCAST;
 		} else if (strcmp( "icq", value )==0 || strcmp( "shoutcast", value )==0) {
-			shout_server.protocol = SHOUT_PROTOCOL_ICY;
+			dvbshout_server.protocol = SHOUT_PROTOCOL_ICY;
 		} else {
 			fprintf(stderr, "Error parsing configuation line %d: invalid protocol.\n", line_num);
 			exit(-1);
@@ -62,15 +62,15 @@ static void process_statement_multicast( char* name, char* value, int line_num )
 {
 
 	if (strcmp( "ttl", name ) == 0) {
-		shout_multicast.ttl = atoi( value );
+		dvbshout_multicast.ttl = atoi( value );
 	} else if (strcmp( "port", name ) == 0) {
-		shout_multicast.port = atoi( value );
+		dvbshout_multicast.port = atoi( value );
 	} else if (strcmp( "user", name ) == 0) { 
-		shout_multicast.port = atoi( value );
+		dvbshout_multicast.port = atoi( value );
 	} else if (strcmp( "interface", name ) == 0) { 
-		strncpy( shout_multicast.interface, value, STR_BUF_SIZE);
+		strncpy( dvbshout_multicast.interface, value, STR_BUF_SIZE);
 	} else if (strcmp( "mtu", name ) == 0) {
-		shout_multicast.mtu = atoi( value );
+		dvbshout_multicast.mtu = atoi( value );
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'multicast'.\n", line_num);
 		exit(-1);
@@ -83,26 +83,26 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 {
 
 	if (strcmp( "card", name ) == 0) {
-		fe_set->card = atoi( value );
+		dvbshout_tuning->card = atoi( value );
 	} else if (strcmp( "type", name ) == 0) { 
-		fe_set->type = tolower(value[strlen(value)-1]);
-		if (fe_set->type != 't' && fe_set->type != 's' && fe_set->type != 'c') {
-			fprintf(stderr,"Error parsing configuation line %d: invalid DVB card type (%c)\n", line_num, fe_set->type);
+		dvbshout_tuning->type = tolower(value[strlen(value)-1]);
+		if (dvbshout_tuning->type != 't' && dvbshout_tuning->type != 's' && dvbshout_tuning->type != 'c') {
+			fprintf(stderr,"Error parsing configuation line %d: invalid DVB card type (%c)\n", line_num, dvbshout_tuning->type);
 			exit(-1);
 		}
 	} else if (strcmp( "frequency", name ) == 0) { 
-		fe_set->freq = atoi( value );
+		dvbshout_tuning->freq = atoi( value );
 	} else if (strcmp( "polarity", name ) == 0) { 
-		fe_set->polarity = tolower(value[0]);
+		dvbshout_tuning->polarity = tolower(value[0]);
 	} else if (strcmp( "symbol_rate", name ) == 0) { 
-		fe_set->srate = atoi( value );
+		dvbshout_tuning->srate = atoi( value );
 	} else if (strcmp( "modulation", name ) == 0) { 
 		switch( atoi( value ) ) {
-			case 16:  fe_set->modulation=QAM_16; break;
-			case 32:  fe_set->modulation=QAM_32; break;
-			case 64:  fe_set->modulation=QAM_64; break;
-			case 128: fe_set->modulation=QAM_128; break;
-			case 256: fe_set->modulation=QAM_256; break;
+			case 16:  dvbshout_tuning->modulation=QAM_16; break;
+			case 32:  dvbshout_tuning->modulation=QAM_32; break;
+			case 64:  dvbshout_tuning->modulation=QAM_64; break;
+			case 128: dvbshout_tuning->modulation=QAM_128; break;
+			case 256: dvbshout_tuning->modulation=QAM_256; break;
 			default:
 				fprintf(stderr,"Error parsing configuation line %d: invalid QAM rate\n", line_num);
 				exit(-1);
@@ -111,10 +111,10 @@ static void process_statement_tuning( char* name, char* value, int line_num )
         
 	} else if (strcmp( "guard_interval", name ) == 0) { 
 		switch( atoi( value ) ) {
-			case 32:  fe_set->guard_interval=GUARD_INTERVAL_1_32; break;
-			case 16:  fe_set->guard_interval=GUARD_INTERVAL_1_16; break;
-			case 8:   fe_set->guard_interval=GUARD_INTERVAL_1_8; break;
-			case 4:   fe_set->guard_interval=GUARD_INTERVAL_1_4; break;
+			case 32:  dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_32; break;
+			case 16:  dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_16; break;
+			case 8:   dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_8; break;
+			case 4:   dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_4; break;
 			default:
 				fprintf(stderr,"Error parsing configuation line %d: invalid Guard Interval\n", line_num);
 				exit(-1);
@@ -123,17 +123,17 @@ static void process_statement_tuning( char* name, char* value, int line_num )
         
 	} else if (strcmp( "code_rate", name ) == 0) { 
         if (!strcmp(value,"auto")) {
-          fe_set->code_rate=FEC_AUTO;
+          dvbshout_tuning->code_rate=FEC_AUTO;
         } else if (!strcmp(value,"1_2")) {
-          fe_set->code_rate=FEC_1_2;
+          dvbshout_tuning->code_rate=FEC_1_2;
         } else if (!strcmp(value,"2_3")) {
-          fe_set->code_rate=FEC_2_3;
+          dvbshout_tuning->code_rate=FEC_2_3;
         } else if (!strcmp(value,"3_4")) {
-          fe_set->code_rate=FEC_3_4;
+          dvbshout_tuning->code_rate=FEC_3_4;
         } else if (!strcmp(value,"5_6")) {
-          fe_set->code_rate=FEC_5_6;
+          dvbshout_tuning->code_rate=FEC_5_6;
         } else if (!strcmp(value,"7_8")) {
-          fe_set->code_rate=FEC_7_8;
+          dvbshout_tuning->code_rate=FEC_7_8;
         } else {
 			fprintf(stderr,"Error parsing configuation line %d: invalid code rate\n", line_num);
 			exit(-1);
@@ -141,9 +141,9 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 
 	} else if (strcmp( "bandwidth", name ) == 0) { 
 		switch(atoi(value)) {
-			case 8:   fe_set->bandwidth=BANDWIDTH_8_MHZ; break;
-			case 7:   fe_set->bandwidth=BANDWIDTH_7_MHZ; break;
-			case 6:   fe_set->bandwidth=BANDWIDTH_6_MHZ; break;
+			case 8:   dvbshout_tuning->bandwidth=BANDWIDTH_8_MHZ; break;
+			case 7:   dvbshout_tuning->bandwidth=BANDWIDTH_7_MHZ; break;
+			case 6:   dvbshout_tuning->bandwidth=BANDWIDTH_6_MHZ; break;
 			default:
 				fprintf(stderr,"Error parsing configuation line %d: invalid DVB-T bandwidth\n", line_num);
 				exit(-1);
@@ -152,8 +152,8 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 
 	} else if (strcmp( "transmission_mode", name ) == 0) { 
 		switch(atoi(value)) {
-			case 8:   fe_set->transmission_mode=TRANSMISSION_MODE_8K; break;
-			case 2:   fe_set->transmission_mode=TRANSMISSION_MODE_2K; break;
+			case 8:   dvbshout_tuning->transmission_mode=TRANSMISSION_MODE_8K; break;
+			case 2:   dvbshout_tuning->transmission_mode=TRANSMISSION_MODE_2K; break;
 			default:
 				fprintf(stderr,"Error parsing configuation line %d: invalid transmission mode\n", line_num);
 				exit(-1);
@@ -170,24 +170,14 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 
 static void process_statement_channel( char* name, char* value, int line_num )
 {
-	shout_channel_t *chan =  channels[ channel_count-1 ];
-	shout_t *shout = chan->shout;
+	dvbshout_channel_t *chan =  channels[ channel_count-1 ];
 	
 	if (strcmp( "name", name ) == 0) {
-		if (shout_set_name( shout, value ) != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
-			exit(-1);
-		}
-		
 		strncpy( chan->name, value, STR_BUF_SIZE);
 		
 	} else if (strcmp( "mount", name ) == 0) { 
-		if (shout_set_mount( shout, value ) != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
-			exit(-1);
-		}
+		strncpy( chan->mount, value, STR_BUF_SIZE);
 		
-	
 	} else if (strcmp( "pid", name ) == 0) { 
 	
 		// Check PID is valid
@@ -206,28 +196,16 @@ static void process_statement_channel( char* name, char* value, int line_num )
 		}
 		
 	} else if (strcmp( "genre", name ) == 0) { 
-		if (shout_set_genre( shout, value ) != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
-			exit(-1);
-		}
+		strncpy( chan->genre, value, STR_BUF_SIZE);
 	
 	} else if (strcmp( "public", name ) == 0) { 
-		if (shout_set_public( shout, atoi(value) ) != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
-			exit(-1);
-		}
-	
-	} else if (strcmp( "url", name ) == 0) { 
-		if (shout_set_url( shout, value ) != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
-			exit(-1);
-		}
+		chan->is_public = atoi( value );
 	
 	} else if (strcmp( "description", name ) == 0) { 
-		if (shout_set_description( shout, value ) != SHOUTERR_SUCCESS) {
-			fprintf(stderr,"Error on configuation line %d: %s\n", line_num, shout_get_error( shout ));
-			exit(-1);
-		}
+		strncpy( chan->description, value, STR_BUF_SIZE);
+
+	} else if (strcmp( "url", name ) == 0) { 
+		strncpy( chan->url, value, STR_BUF_SIZE);
 
 	} else if (strcmp( "multicast_ip", name ) == 0) { 
 		strncpy( chan->multicast_ip, value, STR_BUF_SIZE);
@@ -304,21 +282,29 @@ int parse_config( char *filepath )
 				strcpy( section, ptr );
 			
 			} else if (strcmp( ptr, "channel")==0) {
-				shout_channel_t* chan = calloc( 1, sizeof(shout_channel_t) );
+				dvbshout_channel_t* chan=NULL;
+				
+				if (channel_count >= MAX_CHANNEL_COUNT) {
+					fprintf(stderr, "Error: reached maximum number of channels allowed at line %d\n", line_num);
+					return 1;
+				}
+				
+				// Allocate memory for channel structure
+				chan = calloc( 1, sizeof(dvbshout_channel_t) );
 				if (!chan) {
 					perror("Failed to allocate memory for new channel");
 					exit(-1);
 				}
 
 				chan->num = channel_count;
-				chan->shout = shout_new();
-				chan->stream_id = 0;
+				chan->shout = NULL;
+				chan->pes_stream_id = 0;
 				chan->fd = -1;
 				chan->continuity_count = -1;
 				
-				chan->multicast_port = shout_multicast.port;
-				chan->multicast_ttl = shout_multicast.ttl;
-				chan->multicast_mtu = shout_multicast.mtu;
+				chan->multicast_port = dvbshout_multicast.port;
+				chan->multicast_ttl = dvbshout_multicast.ttl;
+				chan->multicast_mtu = dvbshout_multicast.mtu;
 				
 				
 				strcpy( section, ptr );

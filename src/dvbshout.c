@@ -43,11 +43,11 @@
 int Interrupted=0;
 
 int channel_count=0;
-fe_settings_t *fe_set = NULL;
-shout_channel_t *channel_map[MAX_PID_COUNT];
-shout_channel_t *channels[MAX_CHANNEL_COUNT];
-shout_server_t shout_server;
-shout_multicast_t shout_multicast;
+dvbshout_tuning_t *dvbshout_tuning = NULL;
+dvbshout_channel_t *channel_map[MAX_PID_COUNT];
+dvbshout_channel_t *channels[MAX_CHANNEL_COUNT];
+dvbshout_server_t dvbshout_server;
+dvbshout_multicast_t dvbshout_multicast;
 
 char* frontenddev[4]={"/dev/dvb/adapter0/frontend0","/dev/dvb/adapter1/frontend0","/dev/dvb/adapter2/frontend0","/dev/dvb/adapter3/frontend0"};
 char* dvrdev[4]={"/dev/dvb/adapter0/dvr0","/dev/dvb/adapter1/dvr0","/dev/dvb/adapter2/dvr0","/dev/dvb/adapter3/dvr0"};
@@ -56,9 +56,9 @@ char* demuxdev[4]={"/dev/dvb/adapter0/demux0","/dev/dvb/adapter1/demux0","/dev/d
 
 
 
-static fe_settings_t * init_fe_settings()
+static dvbshout_tuning_t * init_tuning_settings()
 {
-	fe_settings_t *set = malloc( sizeof(fe_settings_t));
+	dvbshout_tuning_t *set = malloc( sizeof(dvbshout_tuning_t) );
 	
 	set->card = 0;
 	set->freq = 0;
@@ -116,17 +116,23 @@ static void set_ts_filters()
 
 
 
-static void connect_server_channel( shout_channel_t *chan )
+static void connect_server_channel( dvbshout_channel_t *chan )
 {
-	shout_t *shout =  chan->shout;
+	shout_t *shout = NULL;
 	char string[STR_BUF_SIZE];
 	int result;
 
 
 	// Don't connect?
-	if (strlen(shout_server.host)==0) {
+	if (strlen(dvbshout_server.host)==0) {
 		return;
 	}
+
+	// Create libshout object?
+	if (chan->shout==NULL) {
+		chan->shout = shout_new();
+	}
+	shout = chan->shout;
 
 	// Already connected to server?
 	if (shout_get_connected( shout ) == SHOUTERR_CONNECTED) {
@@ -137,12 +143,18 @@ static void connect_server_channel( shout_channel_t *chan )
 
 	// Set server parameters
 	shout_set_agent( shout, PACKAGE_STRING );
-	shout_set_host( shout, shout_server.host );
-	shout_set_port( shout, shout_server.port );
-	shout_set_user( shout, shout_server.user );
-	shout_set_password( shout, shout_server.password );
-	shout_set_protocol( shout, shout_server.protocol );
+	shout_set_host( shout, dvbshout_server.host );
+	shout_set_port( shout, dvbshout_server.port );
+	shout_set_user( shout, dvbshout_server.user );
+	shout_set_password( shout, dvbshout_server.password );
+	shout_set_protocol( shout, dvbshout_server.protocol );
 	shout_set_format( shout, SHOUT_FORMAT_MP3 );
+
+	shout_set_name( shout, chan->name );
+	shout_set_mount( shout, chan->mount );
+	shout_set_genre( shout, chan->genre );
+	shout_set_description( shout, chan->description );
+	shout_set_url( shout, chan->url );
 
 
 	// Add information about the audio format
@@ -169,7 +181,7 @@ static void connect_server_channel( shout_channel_t *chan )
 }
 
 
-static RtpSession * create_rtp_session( shout_channel_t *chan )
+static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 {
 	RtpSession *session;
 	
@@ -202,7 +214,7 @@ static void parse_args(int argc, char **argv)
 	}
 }
 
-static void ts_continuity_check( shout_channel_t *chan, int ts_cc ) 
+static void ts_continuity_check( dvbshout_channel_t *chan, int ts_cc ) 
 {
 	if (chan->continuity_count != ts_cc) {
 	
@@ -218,7 +230,7 @@ static void ts_continuity_check( shout_channel_t *chan, int ts_cc )
 		chan->continuity_count=0;
 }
 
-static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_channel_t *chan, int start_of_pes ) 
+static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshout_channel_t *chan, int start_of_pes ) 
 {
 	unsigned char* es_ptr=NULL;
 	size_t es_len=0;
@@ -230,7 +242,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		// Parse the PES header
 		es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
 							
-	} else if (chan->stream_id) {
+	} else if (chan->pes_stream_id) {
 	
 		// Don't output any data until we have seen a PES header
 		es_ptr = pes_ptr;
@@ -275,17 +287,21 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 				
 				
 				// Allocate buffer to store packet in
-				chan->buf_size = chan->payload_size + TS_PACKET_SIZE + 4;
-				chan->buf = realloc( chan->buf, chan->buf_size );
-				chan->buf[0] = 0x00;
-				chan->buf[1] = 0x00;
-				chan->buf[2] = 0x00;
-				chan->buf[3] = 0x00;
-				chan->buf += 4;
+				chan->buf_size = chan->payload_size + TS_PACKET_SIZE;
+				chan->buf = realloc( chan->buf, chan->buf_size + 4 );
 				if (chan->buf==NULL) {
 					perror("Error: Failed to allocate memory for MPEG Audio buffer");
 					exit(-1);
 				}
+
+				// Four null bytes at start of buffer
+				// which make up the MPEG Audio RTP header
+				// (see rfc2250)
+				chan->buf[0] = 0x00;
+				chan->buf[1] = 0x00;
+				chan->buf[2] = 0x00;
+				chan->buf[3] = 0x00;
+				chan->buf_ptr = chan->buf + 4;
 				
 				
 				// (re-)connect to the server
@@ -315,7 +331,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 			}
 		
 			// Copy data into the buffer
-			memcpy( chan->buf + chan->buf_used, es_ptr, es_len);
+			memcpy( chan->buf_ptr + chan->buf_used, es_ptr, es_len);
 			chan->buf_used += es_len;
 		}
 	}
@@ -326,7 +342,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		int result;
 		
 		// Ensure a MPEG Audio frame starts here
-		if (chan->buf[0] != 0xFF) {
+		if (chan->buf_ptr[0] != 0xFF) {
 			fprintf(stderr, "Warning: lost MPEG Audio sync for PID %d.\n", chan->pid);
 			chan->synced = 0;
 			chan->buf_used = 0;
@@ -335,8 +351,8 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		
 	
 		// Send the data to the shoutcast server
-		if (1) {
-			result = shout_send_raw( chan->shout, chan->buf, chan->payload_size );
+		if ( chan->shout ) {
+			result = shout_send_raw( chan->shout, chan->buf_ptr, chan->payload_size );
 			if (result < 0) {
 				fprintf(stderr, "Error: failed to send data to server for PID %d.\n", chan->pid);
 				fprintf(stderr, "  libshout: %s.\n", shout_get_error(chan->shout));
@@ -346,7 +362,8 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		
 		// Send to multicast session
 		if( chan->sess ) {
-			rtp_session_send_with_ts(chan->sess, (char*)chan->buf-4, chan->payload_size+4, chan->multicast_ts);
+			// Send audio payload (plus 4 null bytes at the start)
+			rtp_session_send_with_ts(chan->sess, (char*)chan->buf, chan->payload_size+4, chan->multicast_ts);
 			
 			// Timestamp for MPEG Audio is based on fixed 90kHz clock rate
 			chan->multicast_ts += ((chan->mpah.samples * 90000) / chan->mpah.samplerate)
@@ -356,7 +373,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, shout_c
 		
 		// Move any remaining memory to the start of the buffer
 		chan->buf_used -= chan->payload_size;
-		memmove( chan->buf, chan->buf+chan->payload_size, chan->buf_used );
+		memmove( chan->buf_ptr, chan->buf_ptr+chan->payload_size, chan->buf_used );
 		
 	}
 }
@@ -442,28 +459,29 @@ int main(int argc, char **argv)
 	
 	
 	// Initialise data structures
-	fe_set = init_fe_settings();
+	dvbshout_tuning = init_tuning_settings();
 	for (i=0;i<MAX_PID_COUNT;i++) channel_map[i]=NULL;
 	for (i=0;i<MAX_CHANNEL_COUNT;i++) channels[i]=NULL;
-	memset( &shout_server, 0, sizeof(shout_server_t) );
+	memset( &dvbshout_server, 0, sizeof(dvbshout_server_t) );
 	
 	// Default server settings
-	shout_server.port = SERVER_PORT_DEFAULT;
-	strcpy(shout_server.user, SERVER_USER_DEFAULT);
-	strcpy(shout_server.password, SERVER_PASSWORD_DEFAULT);
-	shout_server.protocol = SERVER_PROTOCOL_DEFAULT;
+	dvbshout_server.port = SERVER_PORT_DEFAULT;
+	strcpy(dvbshout_server.user, SERVER_USER_DEFAULT);
+	strcpy(dvbshout_server.password, SERVER_PASSWORD_DEFAULT);
+	dvbshout_server.protocol = SERVER_PROTOCOL_DEFAULT;
 	
 	// Default settings defaults
-	shout_multicast.ttl = MULTICAST_TTL_DEFAULT;
-	shout_multicast.port = MULTICAST_PORT_DEFAULT;
-	strcpy(shout_multicast.interface, MULTICAST_INTERFACE_DEFAULT);
-	shout_multicast.mtu = MULTICAST_MTU_DEFAULT;
+	dvbshout_multicast.ttl = MULTICAST_TTL_DEFAULT;
+	dvbshout_multicast.port = MULTICAST_PORT_DEFAULT;
+	strcpy(dvbshout_multicast.interface, MULTICAST_INTERFACE_DEFAULT);
+	dvbshout_multicast.mtu = MULTICAST_MTU_DEFAULT;
 
 
 	// Initialise libshout
 	shout_init();
 
 	// Initialise ortp
+	ortp_set_log_level_mask( ORTP_WARNING|ORTP_ERROR|ORTP_FATAL );
 	ortp_init();
 	
 	// Parse command line arguments
@@ -473,14 +491,14 @@ int main(int argc, char **argv)
 	
 
 	// Open the Frontend
-	if((fd_frontend = open(frontenddev[fe_set->card],O_RDWR)) < 0){
+	if((fd_frontend = open(frontenddev[dvbshout_tuning->card],O_RDWR)) < 0){
 		perror("Failed to open frontend device");
 		return -1;
 	}
 
-    // Tune in the frontend
-	if ((fe_set->freq!=0) && (fe_set->polarity!=0)) {
-		int err =tune_it(fd_frontend, fe_set);
+	// Tune in the frontend
+	if ((dvbshout_tuning->freq!=0) && (dvbshout_tuning->polarity!=0)) {
+		int err =tune_it(fd_frontend, dvbshout_tuning);
 		if (err<0) { exit(err); }
 	} else {
 		fprintf(stderr,"Not tuning-in frontend.\n");
@@ -489,7 +507,7 @@ int main(int argc, char **argv)
 	
 	// Open demux device for each of the channels
 	for (i=0;i<channel_count;i++) {  
-		if((channels[i]->fd = open(demuxdev[fe_set->card],O_RDWR)) < 0){
+		if((channels[i]->fd = open(demuxdev[dvbshout_tuning->card],O_RDWR)) < 0){
 			fprintf(stderr,"FD %i: ",i);
 			perror("Failed to open demux device");
 			return -1;
@@ -497,7 +515,7 @@ int main(int argc, char **argv)
 	}
 	
 	// Open the DRV device
-	if((fd_dvr = open(dvrdev[fe_set->card],O_RDONLY)) < 0){
+	if((fd_dvr = open(dvrdev[dvbshout_tuning->card],O_RDONLY)) < 0){
 		perror("Failed to open DVR device");
 		return -1;
 	}
@@ -534,12 +552,13 @@ int main(int argc, char **argv)
 	}
 	close(fd_dvr);
 	close(fd_frontend);
-	if (fe_set) free( fe_set );
+	if (dvbshout_tuning) free( dvbshout_tuning );
 
 	// Shutdown libshout
 	shout_shutdown();	
 
 	// Shutdown oRTP
+	ortp_global_stats_display();
 	ortp_exit();	
 
 	return(0);

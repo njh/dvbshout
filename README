@@ -39,6 +39,7 @@ TODO
 
 More error checking of incoming streams. 
 Add RTP support.
+Add generation of SDP files.
 Quiet/verbose command line switches.
 Add reporting of audio format to server.
 

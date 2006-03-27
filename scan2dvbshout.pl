@@ -194,12 +194,26 @@ sub process_dvb_t {
 	return $wrote;
 }
 
+
+sub clean_filename {
+	my ($filename) = @_;
+	
+	$filename =~ tr/A-Z/a-z/;
+	$filename =~ s/\W/_/g;
+	
+	# Remove underscores from end
+	while( $filename =~ /_$/ ) {
+		$filename = substr( $filename, 0, -1 );
+	}
+	
+	return $filename;
+}
+
+
 sub print_channel {
 	my ($name, $pid) = @_;
 
-	my $mount = $name;
-	$mount =~ tr/A-Z/a-z/;
-	$mount =~ s/\W/_/g;
+	my $mount = clean_filename( $name );
 	
 	# Remove underscores from end
 	while( $mount =~ /_$/ ) {

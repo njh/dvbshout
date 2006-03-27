@@ -35,7 +35,7 @@
 
 
 
-unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, shout_channel_t *chan) 
+unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dvbshout_channel_t *chan) 
 {
 	size_t pes_len = PES_PACKET_LEN(buf);
 	size_t pes_header_len = PES_PACKET_HEAD_LEN(buf);
@@ -57,12 +57,12 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, sh
 	}
 	
 	// only keep the first stream we see
-	chan->stream_id = stream_id;
+	chan->pes_stream_id = stream_id;
 	
 	// Check PES Extension header 
 	if( PES_PACKET_SYNC_CODE(buf) != 0x2 )
 	{
-		fprintf(stderr, "Error: include sync code PES extension header (pid: %d).\n", chan->pid);
+		fprintf(stderr, "Error: invalid sync code PES extension header (pid: %d).\n", chan->pid);
 		return 0;
 	}
 
@@ -75,7 +75,18 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, sh
 
 /*
 	fprintf(stderr, "PES Packet:   pid: %d,  length: %d\n", chan->pid, pes_len);
+	if (PES_PACKET_PTS_DTS(buf) == 0x10) {
+		fprintf(stderr, "  PES_PACKET_PTS=%d\n", PES_PACKET_PTS(buf)-chan->pes_pts );
+		chan->pes_pts=PES_PACKET_PTS(buf);
+	} else if (PES_PACKET_PTS_DTS(buf) == 0x11) {
+		fprintf(stderr, "  PES_PACKET_PTS=%d\n", PES_PACKET_PTS(buf)-chan->pes_pts );
+		chan->pes_pts=PES_PACKET_PTS(buf);
+		fprintf(stderr, "  PES_PACKET_DTS=%d\n", PES_PACKET_DTS(buf)-chan->pes_dts );
+		chan->pes_dts=PES_PACKET_DTS(buf);
+	}
+*/
 
+/*
 	fprintf(stderr, "  PES_PACKET_STREAM_ID=%d\n", PES_PACKET_STREAM_ID(buf) );
 	fprintf(stderr, "  PES_PACKET_PRIORITY=%d\n", PES_PACKET_PRIORITY(buf) );
 	fprintf(stderr, "  PES_PACKET_ALIGNMENT=%d\n", PES_PACKET_ALIGNMENT(buf) );

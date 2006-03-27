@@ -214,7 +214,7 @@ check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
 
 
 int
-tune_it (int fd_frontend, fe_settings_t * set)
+tune_it (int fd_frontend, dvbshout_tuning_t * set)
 {
 	int res;
 	struct dvb_frontend_parameters feparams;
@@ -245,6 +245,8 @@ tune_it (int fd_frontend, fe_settings_t * set)
       fprintf (stderr, "Tuning DVB-T to %d\n", set->freq);
       break;
     case FE_QPSK:
+    	set->freq *= 1000;
+    	set->srate *= 1000;
       fprintf (stderr, "Tuning DVB-S to %d, Pol:%c Srate=%d, 22kHz=%s\n",
 	       set->freq, set->polarity, set->srate,
 	       set->tone == SEC_TONE_ON ? "on" : "off");

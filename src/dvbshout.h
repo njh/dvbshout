@@ -77,8 +77,8 @@
 // The size of MPEG2 TS packets
 #define TS_PACKET_SIZE			188
 
-// There seems to be a limit of 16 simultaneous filters in the driver
-#define MAX_CHANNEL_COUNT		16
+// There seems to be a limit of 32 simultaneous filters in the driver
+#define MAX_CHANNEL_COUNT		32
 
 // Maximum allowed PID value
 #define MAX_PID_COUNT			8192
@@ -114,7 +114,7 @@
 #define PES_PACKET_SYNC_BYTE2(b)	(b[1])
 #define PES_PACKET_SYNC_BYTE3(b)	(b[2])
 #define PES_PACKET_STREAM_ID(b)		(b[3])
-#define PES_PACKET_LEN(b)			((b[4]) << 8) | (b[5])
+#define PES_PACKET_LEN(b)		((b[4]) << 8) | (b[5])
 
 #define PES_PACKET_SYNC_CODE(b)		((b[6] & 0xC0) >> 6)
 #define PES_PACKET_SCRAMBLED(b)		((b[6] & 0x30) >> 4)
@@ -132,28 +132,53 @@
 #define PES_PACKET_EXTEN(b)			((b[7] & 0x1) >> 0)
 #define PES_PACKET_HEAD_LEN(b)		(b[8])
 
+#define PES_PACKET_PTS(b)		((uint32_t)((b[9] & 0x0E) << 29) | \
+					 (uint32_t)(b[10] << 22) | \
+					 (uint32_t)((b[11] & 0xFE) << 14) | \
+					 (uint32_t)(b[12] << 7) | \
+					 (uint32_t)(b[13] >> 1))
+
+#define PES_PACKET_DTS(b)		((uint32_t)((b[14] & 0x0E) << 29) | \
+					 (uint32_t)(b[15] << 22) | \
+					 (uint32_t)((b[16] & 0xFE) << 14) | \
+					 (uint32_t)(b[17] << 7) | \
+					 (uint32_t)(b[18] >> 1))
+
 
 
 /* Structure containing single channel */
-typedef struct shout_channel_s {
+typedef struct dvbshout_channel_s {
 
 	int num;				// channel number
-	char name[STR_BUF_SIZE];// channel name
-	int fd;					// debux file descriptor
+	int fd;					// demux file descriptor
 	int pid;				// Packet Identifier of audio stream
-	int stream_id;			// PES stream ID
+
+	
+	// Metadata about the channel
+	char name[STR_BUF_SIZE];	// channel name
+	char genre[STR_BUF_SIZE];	// genre
+	char description[STR_BUF_SIZE];	// description
+	char url[STR_BUF_SIZE];		// Informational URL
+
 
 	int continuity_count;	// TS packet continuity counter
+	int pes_stream_id;		// PES stream ID
 	size_t pes_remaining;	// Number of bytes remaining in current PES packet
+	uint32_t pes_pts;		// Presentation Timestamp for current PES packet
+	uint32_t pes_dts;		// Decode Timestamp for current PES packet
 	
-	shout_t *shout;			// libshout structure
+	shout_t *shout;				// libshout structure
+	char is_public;				// announce existance?
+	char mount[STR_BUF_SIZE];	// mount point
 
 	mpa_header_t mpah;		// Parsed MPEG audio header
 	int synced;				// Have MPA sync?
 	
-	unsigned char* buf;		// MPEG Audio Buffer (ready for sending)
-	int buf_size;			// Total size of MPEG Audio Buffer
-	int buf_used;			// Amount of buffer used
+
+	uint8_t * buf;			// MPEG Audio Buffer (with 4 nulls bytes)
+	uint8_t * buf_ptr;		// Pointer to start of audio data
+	uint32_t buf_size;		// Usable size of MPEG Audio Buffer
+	uint32_t buf_used;		// Amount of buffer used
 	
 	RtpSession * sess;		// Multicast RTP session
 	char multicast_ip[STR_BUF_SIZE];	// Multicast IP
@@ -167,31 +192,31 @@ typedef struct shout_channel_s {
 	int payload_size;					// Size of the payload
 	
 
-} shout_channel_t;
+} dvbshout_channel_t;
 
 
 /* Structure server settings */
-typedef struct shout_multicast_s {
+typedef struct dvbshout_multicast_s {
 	int ttl;
 	int port;
 	int mtu;
 	char interface[STR_BUF_SIZE];
-} shout_multicast_t;
+} dvbshout_multicast_t;
 
 
 /* Structure server settings */
-typedef struct shout_server_s {
+typedef struct dvbshout_server_s {
 	char host[STR_BUF_SIZE];
 	int port;
 	char user[STR_BUF_SIZE];
 	char password[STR_BUF_SIZE];
 	int protocol;
 
-} shout_server_t;
+} dvbshout_server_t;
 
 
 /* Structure containing tuning settings */
-typedef struct fe_settings_s {
+typedef struct dvbshout_tuning_s {
 
 	unsigned char card;			// Card number
 	unsigned char type;			// Card type (s/c/t)
@@ -209,25 +234,25 @@ typedef struct fe_settings_s {
 	fe_guard_interval_t guard_interval;
 	fe_bandwidth_t bandwidth;
 
-} fe_settings_t;
+} dvbshout_tuning_t;
 
 
 
 
 /* In dvbshout.c */
 extern int channel_count;
-extern fe_settings_t *fe_set;
-extern shout_channel_t *channel_map[MAX_PID_COUNT];
-extern shout_channel_t *channels[MAX_CHANNEL_COUNT];
-extern shout_server_t shout_server;
-extern shout_multicast_t shout_multicast;
+extern dvbshout_tuning_t *dvbshout_tuning;
+extern dvbshout_channel_t *channel_map[MAX_PID_COUNT];
+extern dvbshout_channel_t *channels[MAX_CHANNEL_COUNT];
+extern dvbshout_server_t dvbshout_server;
+extern dvbshout_multicast_t dvbshout_multicast;
 
 
 /* In tune.c */
-int tune_it(int fd_frontend, fe_settings_t *set);
+int tune_it(int fd_frontend, dvbshout_tuning_t *set);
 
 /* In pes.c */
-unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, shout_channel_t *chan);
+unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dvbshout_channel_t *chan);
 
 
 /* In parse_config.c */
