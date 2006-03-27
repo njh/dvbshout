@@ -1,6 +1,15 @@
 #!/usr/bin/perl
+#
+# Interactive perl script to convert 'channels.conf' file 
+# created by 'scan' to a dvbshout configuration file.
+#
+# There maybe be some details you need to edit 
+# in the resulting dvbshout.conf
+#
 
 use strict;
+
+
 
 # Card number ?
 print "Card number? [0]: ";
