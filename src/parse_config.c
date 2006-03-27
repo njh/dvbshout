@@ -52,7 +52,7 @@ static void process_statement_server( char* name, char* value, int line_num )
 			exit(-1);
 		}
 	} else {
-		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'server'.\n", line_num);
 		exit(-1);
 	}
 	
@@ -72,7 +72,7 @@ static void process_statement_multicast( char* name, char* value, int line_num )
 	} else if (strcmp( "mtu", name ) == 0) {
 		shout_multicast.mtu = atoi( value );
 	} else {
-		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'multicast'.\n", line_num);
 		exit(-1);
 	}
 	
@@ -84,6 +84,12 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 
 	if (strcmp( "card", name ) == 0) {
 		fe_set->card = atoi( value );
+	} else if (strcmp( "type", name ) == 0) { 
+		fe_set->type = tolower(value[strlen(value)-1]);
+		if (fe_set->type != 't' && fe_set->type != 's' && fe_set->type != 'c') {
+			fprintf(stderr,"Error parsing configuation line %d: invalid DVB card type (%c)\n", line_num, fe_set->type);
+			exit(-1);
+		}
 	} else if (strcmp( "frequency", name ) == 0) { 
 		fe_set->freq = atoi( value );
 	} else if (strcmp( "polarity", name ) == 0) { 
@@ -155,7 +161,7 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 		}
         
 	} else {
-		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'tuning'.\n", line_num);
 		exit(-1);
 	}
 
@@ -182,7 +188,7 @@ static void process_statement_channel( char* name, char* value, int line_num )
 		}
 		
 	
-	} else if (strcmp( "audio_pid", name ) == 0) { 
+	} else if (strcmp( "pid", name ) == 0) { 
 	
 		// Check PID is valid
 		chan->pid = atoi( value );
@@ -236,7 +242,7 @@ static void process_statement_channel( char* name, char* value, int line_num )
 		chan->multicast_mtu = atoi(value);
 		
 	} else {
-		fprintf(stderr, "Error parsing configuation line %d: invalid statement.\n", line_num);
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'channel'.\n", line_num);
 		exit(-1);
 	}
 	

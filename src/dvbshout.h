@@ -194,6 +194,7 @@ typedef struct shout_server_s {
 typedef struct fe_settings_s {
 
 	unsigned char card;			// Card number
+	unsigned char type;			// Card type (s/c/t)
 	
 	unsigned int freq;			// Frequency (Hz)
 	unsigned char polarity;		// Polarity

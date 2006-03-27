@@ -47,11 +47,14 @@ open(OUTPUT, ">$output") or die "Failed to open output file: $!";
 print "Frequency (MHz): ";
 my $f = <STDIN>; chomp($f);
 
-print "Polarity (H/V): ";
-my $p = <STDIN>;
-if ($p =~ /^h/i) { $p='h'; }
-else {$p = 'v';}
-
+# Ask for polarity for DVB-S
+my $p = undef;
+if ($cardtype eq 's') {
+	print "Polarity (H/V): ";
+	$p = <STDIN>;
+	if ($p =~ /^h/i) { $p='h'; }
+	else {$p = 'v';}
+}
 
 
 print OUTPUT "# dvbshout configuration file\n";
@@ -103,14 +106,11 @@ sub process_dvb_s {
 			print "Include '$name' (Y/n)? ";
 			my $yesno = <STDIN>;
 			unless ($yesno =~ /^n/i) {
-				my $mount = $name;
-				$mount =~ tr/A-Z/a-z/;
-				$mount =~ s/\W/_/g;
-				
 				unless ($wrote_tuning) {
 				
 					print OUTPUT "[tuning]\n";
 					print OUTPUT "card: $cardnum\n";
+					print OUTPUT "type: DVB-S\n";
 					print OUTPUT "frequency: $f\n";
 					print OUTPUT "polarity: $p\n";
 					print OUTPUT "symbol_rate: $srate\n";
@@ -119,17 +119,8 @@ sub process_dvb_s {
 					$wrote_tuning=1;
 				}
 			
-				print OUTPUT "[channel]\n";
-				print OUTPUT "name: $name\n";
-				print OUTPUT "mount: /dvb/$mount\n";
-				print OUTPUT "audio_pid: $apid\n";
-				print OUTPUT "multicast_ip: ".random_multicast_ip()."\n";
-				print OUTPUT "genre: Varied\n";
-				print OUTPUT "public: 0\n";
-				print OUTPUT "url:\n";
-				print OUTPUT "description:\n";
-				print OUTPUT "\n";
-			
+				print_channel( $name, $apid );
+
 				$wrote++;
 			}
 		
@@ -146,16 +137,77 @@ sub process_dvb_c {
 }
 
 sub process_dvb_t {
-	die "DVB-T Not implemented yet.\n";
+	my $wrote_tuning = 0;
+	my $num = 0;
+	my $wrote = 0;
+	while(<CHANNELS>) {
+		my ($name, $freq, $inversion, $bandwidth, $code_rate_hp, $code_rate_lp, $constellation, 
+		    $transmission_mode, $guard_interval, $hierarchy, $vpid, $apid, $sid) = split(/:/);
+		$num++;
+		
+		if ($freq == $f and $apid) {
+			print "Include '$name' (Y/n)? ";
+			my $yesno = <STDIN>;
+			unless ($yesno =~ /^n/i) {
+				
+				unless ($wrote_tuning) {
+				
+					# Clean up parameters
+					$bandwidth =~ s/\D//g;
+					$code_rate_hp =~ s/FEC_//;
+					$constellation =~ s/QAM_//;
+					$inversion =~ s/INVERSION_//;
+					$hierarchy =~ s/HIERARCHY_//;
+					$guard_interval =~ s/GUARD_INTERVAL_1_//;
+				
+					print OUTPUT "[tuning]\n";
+					print OUTPUT "card: $cardnum\n";
+					print OUTPUT "type: DVB-T\n";
+					print OUTPUT "frequency: $f\n";
+					print OUTPUT "inversion: $inversion\n";
+					print OUTPUT "bandwidth: $bandwidth\n";
+					print OUTPUT "code_rate: $code_rate_hp\n";
+					print OUTPUT "constellation: $constellation\n";
+					print OUTPUT "guard_interval: $guard_interval\n";
+					print OUTPUT "hierarchy: $hierarchy\n\n";
+					$wrote_tuning=1;
+				}
+			
+				print_channel( $name, $apid );
+			
+				$wrote++;
+			}
+		
+		}
+	
+	}
+
+	return $wrote;
 }
 
-sub uk_dvbt {
-	return	"\n# United Kingdom DVB-T settings\n".
-			"modulation: 64\n".
-			"guard_interval: 32\n".
-			"code_rate: 2_3\n".
-			"bandwidth: 8\n".
-			"transmission_mode: 2\n";
+sub print_channel {
+	my ($name, $pid) = @_;
+
+	my $mount = $name;
+	$mount =~ tr/A-Z/a-z/;
+	$mount =~ s/\W/_/g;
+	
+	# Remove underscores from end
+	while( $mount =~ /_$/ ) {
+		$mount = substr( $mount, 0, -1 );
+	}
+	
+	print OUTPUT "[channel]\n";
+	print OUTPUT "name: $name\n";
+	print OUTPUT "mount: /dvb/$mount\n";
+	print OUTPUT "pid: $pid\n";
+	print OUTPUT "multicast_ip: ".random_multicast_ip()."\n";
+	print OUTPUT "genre: Varied\n";
+	print OUTPUT "public: 0\n";
+	print OUTPUT "url:\n";
+	print OUTPUT "description:\n";
+	print OUTPUT "\n";
+	
 }
 
 
