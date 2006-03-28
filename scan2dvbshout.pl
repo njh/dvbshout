@@ -6,6 +6,8 @@
 # There maybe be some details you need to edit 
 # in the resulting dvbshout.conf
 #
+# scan -x 0 -o zap > ~/.szap/channels.conf
+# 
 
 use strict;
 
@@ -122,9 +124,7 @@ sub process_dvb_s {
 					print OUTPUT "type: DVB-S\n";
 					print OUTPUT "frequency: $f\n";
 					print OUTPUT "polarity: $p\n";
-					print OUTPUT "symbol_rate: $srate\n";
-				
-					print OUTPUT "\n\n";
+					print OUTPUT "symbol_rate: $srate\n\n";
 					$wrote_tuning=1;
 				}
 			
@@ -142,8 +142,47 @@ sub process_dvb_s {
 
 
 sub process_dvb_c {
-	die "DVB-C Not implemented yet.\n";
+	my $wrote_tuning = 0;
+	my $num = 0;
+	my $wrote = 0;
+	while(<CHANNELS>) {
+		my ($name, $freq, $inversion, $srate, $fec, $modulation, $vpid, $apid, $sid) = split(/:/);
+		$num++;
+		
+		if ($freq == $f and $apid) {
+			print "Include '$name' (Y/n)? ";
+			my $yesno = <STDIN>;
+			unless ($yesno =~ /^n/i) {
+				unless ($wrote_tuning) {
+				
+					# Clean up parameters
+					$inversion =~ s/INVERSION_//g;
+					$fec =~ s/FEC_//;
+					$modulation =~ s/QAM_//;
+				
+					print OUTPUT "[tuning]\n";
+					print OUTPUT "card: $cardnum\n";
+					print OUTPUT "type: DVB-C\n";
+					print OUTPUT "frequency: $f\n";
+					print OUTPUT "inversion: $inversion\n";
+					print OUTPUT "symbol_rate: $srate\n";
+					print OUTPUT "fec: $fec\n";
+					print OUTPUT "modulation: $modulation\n\n";
+					$wrote_tuning=1;
+				}
+			
+				print_channel( $name, $apid );
+
+				$wrote++;
+			}
+		
+		}
+	
+	}
+
+	return $wrote;
 }
+
 
 sub process_dvb_t {
 	my $wrote_tuning = 0;
@@ -175,7 +214,8 @@ sub process_dvb_t {
 					print OUTPUT "frequency: $f\n";
 					print OUTPUT "inversion: $inversion\n";
 					print OUTPUT "bandwidth: $bandwidth\n";
-					print OUTPUT "code_rate: $code_rate_hp\n";
+					print OUTPUT "code_rate_hp: $code_rate_hp\n";
+					print OUTPUT "code_rate_lp: $code_rate_lp\n";
 					print OUTPUT "constellation: $constellation\n";
 					print OUTPUT "guard_interval: $guard_interval\n";
 					print OUTPUT "hierarchy: $hierarchy\n\n";
