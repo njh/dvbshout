@@ -6,7 +6,7 @@
 # There maybe be some details you need to edit 
 # in the resulting dvbshout.conf
 #
-# scan -x 0 -o zap > ~/.szap/channels.conf
+# scan -x 0 -o zap /usr/share/dvb/dvb-s/Astra-28.2E > ~/.szap/channels.conf
 # 
 
 use strict;
@@ -146,7 +146,7 @@ sub process_dvb_c {
 	my $num = 0;
 	my $wrote = 0;
 	while(<CHANNELS>) {
-		my ($name, $freq, $inversion, $srate, $fec, $modulation, $vpid, $apid, $sid) = split(/:/);
+		my ($name, $freq, $inversion, $srate, $fec_inner, $modulation, $vpid, $apid, $sid) = split(/:/);
 		$num++;
 		
 		if ($freq == $f and $apid) {
@@ -157,6 +157,7 @@ sub process_dvb_c {
 				
 					# Clean up parameters
 					$inversion =~ s/INVERSION_//g;
+					$inversion =~ tr/A-Z/a-z/;
 					$fec =~ s/FEC_//;
 					$modulation =~ s/QAM_//;
 				
@@ -166,7 +167,7 @@ sub process_dvb_c {
 					print OUTPUT "frequency: $f\n";
 					print OUTPUT "inversion: $inversion\n";
 					print OUTPUT "symbol_rate: $srate\n";
-					print OUTPUT "fec: $fec\n";
+					print OUTPUT "fec_inner: $fec\n";
 					print OUTPUT "modulation: $modulation\n\n";
 					$wrote_tuning=1;
 				}
@@ -189,7 +190,7 @@ sub process_dvb_t {
 	my $num = 0;
 	my $wrote = 0;
 	while(<CHANNELS>) {
-		my ($name, $freq, $inversion, $bandwidth, $code_rate_hp, $code_rate_lp, $constellation, 
+		my ($name, $freq, $inversion, $bandwidth, $code_rate_hp, $code_rate_lp, $modulation, 
 		    $transmission_mode, $guard_interval, $hierarchy, $vpid, $apid, $sid) = split(/:/);
 		$num++;
 		
@@ -203,10 +204,13 @@ sub process_dvb_t {
 					# Clean up parameters
 					$bandwidth =~ s/\D//g;
 					$code_rate_hp =~ s/FEC_//;
-					$constellation =~ s/QAM_//;
+					$code_rate_lp =~ s/FEC_//;
+					$modulation =~ s/QAM_//;
 					$inversion =~ s/INVERSION_//;
+					$inversion =~ tr/A-Z/a-z/;
 					$hierarchy =~ s/HIERARCHY_//;
-					$guard_interval =~ s/GUARD_INTERVAL_1_//;
+					$hierarchy =~ tr/A-Z/a-z/;
+					$guard_interval =~ s/GUARD_INTERVAL_//;
 				
 					print OUTPUT "[tuning]\n";
 					print OUTPUT "card: $cardnum\n";
@@ -216,7 +220,7 @@ sub process_dvb_t {
 					print OUTPUT "bandwidth: $bandwidth\n";
 					print OUTPUT "code_rate_hp: $code_rate_hp\n";
 					print OUTPUT "code_rate_lp: $code_rate_lp\n";
-					print OUTPUT "constellation: $constellation\n";
+					print OUTPUT "modulation: $modulation\n";
 					print OUTPUT "guard_interval: $guard_interval\n";
 					print OUTPUT "hierarchy: $hierarchy\n\n";
 					$wrote_tuning=1;
