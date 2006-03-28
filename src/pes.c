@@ -73,20 +73,19 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dv
 		return 0;
 	}
 
-/*
-	fprintf(stderr, "PES Packet:   pid: %d,  length: %d\n", chan->pid, pes_len);
-	if (PES_PACKET_PTS_DTS(buf) == 0x10) {
-		fprintf(stderr, "  PES_PACKET_PTS=%d\n", PES_PACKET_PTS(buf)-chan->pes_pts );
+	// Store the timestamp of this PES packet
+	if (PES_PACKET_PTS_DTS(buf) & 0x2) {
 		chan->pes_pts=PES_PACKET_PTS(buf);
-	} else if (PES_PACKET_PTS_DTS(buf) == 0x11) {
-		fprintf(stderr, "  PES_PACKET_PTS=%d\n", PES_PACKET_PTS(buf)-chan->pes_pts );
-		chan->pes_pts=PES_PACKET_PTS(buf);
-		fprintf(stderr, "  PES_PACKET_DTS=%d\n", PES_PACKET_DTS(buf)-chan->pes_dts );
-		chan->pes_dts=PES_PACKET_DTS(buf);
 	}
-*/
+	
+	if (PES_PACKET_PTS_DTS(buf) & 0x3) {
+		chan->pes_pts=PES_PACKET_DTS(buf);
+	}
+	
 
 /*
+	fprintf(stderr, "PES Packet:   pid: %d,  length: %d\n", chan->pid, pes_len);
+
 	fprintf(stderr, "  PES_PACKET_STREAM_ID=%d\n", PES_PACKET_STREAM_ID(buf) );
 	fprintf(stderr, "  PES_PACKET_PRIORITY=%d\n", PES_PACKET_PRIORITY(buf) );
 	fprintf(stderr, "  PES_PACKET_ALIGNMENT=%d\n", PES_PACKET_ALIGNMENT(buf) );
@@ -99,6 +98,9 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dv
 	fprintf(stderr, "  PES_PACKET_ADD_COPY=%d\n", PES_PACKET_ADD_COPY(buf) );
 	fprintf(stderr, "  PES_PACKET_CRC=%d\n", PES_PACKET_CRC(buf) );
 	fprintf(stderr, "  PES_PACKET_EXTEN=%d\n", PES_PACKET_EXTEN(buf) );
+	
+	fprintf(stderr, "  PES_PACKET_PTS=%d\n", PES_PACKET_PTS(buf) );
+	fprintf(stderr, "  PES_PACKET_DTS=%d\n", PES_PACKET_DTS(buf) );
 */
 
 	// Store the length of the PES packet payload

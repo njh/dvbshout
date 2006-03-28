@@ -257,13 +257,14 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				if (chan->multicast_mtu < chan->mpah.framesize) {
 					fprintf(stderr, "Error: audio frame size is bigger than packet MTU.\n");
 					exit(-1);
-				} else {
-					chan->frames_per_packet = ( chan->multicast_mtu / chan->mpah.framesize );
-					chan->payload_size = chan->frames_per_packet * chan->mpah.framesize;
-					fprintf(stderr, "  RTP payload size: %d (%d frames of audio)\n", 
-						chan->payload_size, chan->frames_per_packet );
 				}
 				
+				// Calculate the number of frames per packet
+				chan->frames_per_packet = ( chan->multicast_mtu / chan->mpah.framesize );
+				chan->payload_size = chan->frames_per_packet * chan->mpah.framesize;
+				fprintf(stderr, "  RTP payload size: %d (%d frames of audio)\n", 
+					chan->payload_size, chan->frames_per_packet );
+			    
 				
 				// Allocate buffer to store packet in
 				chan->buf_size = chan->payload_size + TS_PACKET_SIZE;
@@ -346,7 +347,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 			
 			// Timestamp for MPEG Audio is based on fixed 90kHz clock rate
 			chan->multicast_ts += ((chan->mpah.samples * 90000) / chan->mpah.samplerate)
-			                * chan->frames_per_packet;
+											* chan->frames_per_packet;
 
 		}
 		
