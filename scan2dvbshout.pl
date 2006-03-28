@@ -80,7 +80,7 @@ print OUTPUT "password: hackme\n";
 print OUTPUT "protocol: icecast2\n\n";
 
 print OUTPUT "[multicast]\n";
-print OUTPUT "ttl: 15\n";
+print OUTPUT "ttl: 5\n";
 print OUTPUT "port: 5004\n";
 print OUTPUT "mtu: 1450\n";
 print OUTPUT "interface: eth0\n\n";
