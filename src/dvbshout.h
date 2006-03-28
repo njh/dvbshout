@@ -50,8 +50,10 @@
 
 /* Defaults are for the United Kingdom */
 #define BANDWIDTH_DEFAULT           BANDWIDTH_8_MHZ
-#define CODERATE_DEFAULT        	FEC_AUTO
+#define CODERATE_HP_DEFAULT        	FEC_3_4
+#define CODERATE_LP_DEFAULT        	FEC_3_4
 #define CONSTELLATION_DEFAULT       QAM_64
+#define MODULATION_DEFAULT      	QAM_16
 #define TRANSMISSION_MODE_DEFAULT   TRANSMISSION_MODE_2K
 #define GUARD_INTERVAL_DEFAULT      GUARD_INTERVAL_1_32
 #define HIERARCHY_DEFAULT           HIERARCHY_NONE
@@ -224,15 +226,19 @@ typedef struct dvbshout_tuning_s {
 	unsigned int freq;			// Frequency (Hz)
 	unsigned char polarity;		// Polarity
 	unsigned int srate;			// Symbols per Second (Hz)
+	unsigned int diseqc;
 	int tone;					// 22kHz tone (-1 = auto)
 	
-	unsigned int diseqc;
-	fe_spectral_inversion_t spec_inv;
-	fe_modulation_t modulation;
-	fe_code_rate_t code_rate;
-	fe_transmit_mode_t transmission_mode;
-	fe_guard_interval_t guard_interval;
-	fe_bandwidth_t bandwidth;
+	fe_spectral_inversion_t  inversion;
+	fe_bandwidth_t  bandwidth;
+	fe_code_rate_t  code_rate_hp;
+	fe_code_rate_t  code_rate_lp;
+	fe_code_rate_t  fec_inner;
+	fe_transmit_mode_t  transmission_mode;
+	fe_modulation_t  constellation;
+	fe_guard_interval_t  guard_interval;
+	fe_hierarchy_t hierarchy;
+	
 
 } dvbshout_tuning_t;
 
