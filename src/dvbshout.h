@@ -46,21 +46,24 @@
 #define LOF1 (9750*1000UL)
 #define LOF2 (10600*1000UL)
 
+#define SYMBOLRATE_DEFAULT 			(27500)
+#define DISEQC_DEFAULT 				(0)
+#define SEC_TONE_DEFAULT 			(-1)
+
+
 /* DVB-T */
 
 /* Defaults are for the United Kingdom */
+#define INVERSION_DEFAULT			INVERSION_AUTO
 #define BANDWIDTH_DEFAULT           BANDWIDTH_8_MHZ
 #define CODERATE_HP_DEFAULT        	FEC_3_4
 #define CODERATE_LP_DEFAULT        	FEC_3_4
-#define CONSTELLATION_DEFAULT       QAM_64
-#define MODULATION_DEFAULT      	QAM_16
+#define FEC_INNER_DEFAULT	        FEC_AUTO
+#define MODULATON_DEFAULT     		QAM_16
+#define HIERARCHY_DEFAULT           HIERARCHY_NONE
 #define TRANSMISSION_MODE_DEFAULT   TRANSMISSION_MODE_2K
 #define GUARD_INTERVAL_DEFAULT      GUARD_INTERVAL_1_32
-#define HIERARCHY_DEFAULT           HIERARCHY_NONE
 
-#if HIERARCHY_DEFAULT == HIERARCHY_NONE && !defined (LP_CODERATE_DEFAULT)
-#define LP_CODERATE_DEFAULT (0) /* unused if HIERARCHY_NONE */
-#endif
 
 /* Defauls for shout server */
 #define SERVER_PORT_DEFAULT				(8000)
@@ -217,15 +220,17 @@ typedef struct dvbshout_server_s {
 } dvbshout_server_t;
 
 
-/* Structure containing tuning settings */
+/* Structure containing tuning settings 
+   - not all fields are used for every interface
+*/
 typedef struct dvbshout_tuning_s {
 
 	unsigned char card;			// Card number
 	unsigned char type;			// Card type (s/c/t)
 	
-	unsigned int freq;			// Frequency (Hz)
+	unsigned int frequency;		// Frequency (Hz) (kHz for QPSK)
 	unsigned char polarity;		// Polarity
-	unsigned int srate;			// Symbols per Second (Hz)
+	unsigned int symbol_rate;	// Symbols per Second (Hz)
 	unsigned int diseqc;
 	int tone;					// 22kHz tone (-1 = auto)
 	
@@ -234,10 +239,10 @@ typedef struct dvbshout_tuning_s {
 	fe_code_rate_t  code_rate_hp;
 	fe_code_rate_t  code_rate_lp;
 	fe_code_rate_t  fec_inner;
+	fe_modulation_t  modulation;
+	fe_hierarchy_t  hierarchy;
 	fe_transmit_mode_t  transmission_mode;
-	fe_modulation_t  constellation;
 	fe_guard_interval_t  guard_interval;
-	fe_hierarchy_t hierarchy;
 	
 
 } dvbshout_tuning_t;
@@ -256,6 +261,7 @@ extern dvbshout_multicast_t dvbshout_multicast;
 
 /* In tune.c */
 int tune_it(int fd_frontend, dvbshout_tuning_t *set);
+dvbshout_tuning_t * init_tuning_defaults();
 
 /* In pes.c */
 unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dvbshout_channel_t *chan);

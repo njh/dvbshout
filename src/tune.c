@@ -1,6 +1,7 @@
-/* dvbtune - tune.c
+/* dvbshout - tune.c
 
    Copyright (C) Dave Chapman 2001,2002
+   Copyright (C) Nicholas J Humfrey 2006
   
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -39,41 +40,35 @@
 static void
 print_status (FILE * fd, fe_status_t festatus)
 {
-  fprintf (fd, "Frontend Status:");
-  if (festatus & FE_HAS_SIGNAL)
-    fprintf (fd, " FE_HAS_SIGNAL");
-  if (festatus & FE_TIMEDOUT)
-    fprintf (fd, " FE_TIMEDOUT");
-  if (festatus & FE_HAS_LOCK)
-    fprintf (fd, " FE_HAS_LOCK");
-  if (festatus & FE_HAS_CARRIER)
-    fprintf (fd, " FE_HAS_CARRIER");
-  if (festatus & FE_HAS_VITERBI)
-    fprintf (fd, " FE_HAS_VITERBI");
-  if (festatus & FE_HAS_SYNC)
-    fprintf (fd, " FE_HAS_SYNC");
-  fprintf (fd, "\n");
+	fprintf (fd, "Frontend Status:");
+	if (festatus & FE_HAS_SIGNAL)	fprintf (fd, " FE_HAS_SIGNAL");
+	if (festatus & FE_TIMEDOUT)		fprintf (fd, " FE_TIMEDOUT");
+	if (festatus & FE_HAS_LOCK)		fprintf (fd, " FE_HAS_LOCK");
+	if (festatus & FE_HAS_CARRIER)	fprintf (fd, " FE_HAS_CARRIER");
+	if (festatus & FE_HAS_VITERBI)	fprintf (fd, " FE_HAS_VITERBI");
+	if (festatus & FE_HAS_SYNC)		fprintf (fd, " FE_HAS_SYNC");
+	fprintf (fd, "\n");
 }
 
 struct diseqc_cmd
 {
-  struct dvb_diseqc_master_cmd cmd;
-  uint32_t wait;
+	struct dvb_diseqc_master_cmd cmd;
+	uint32_t wait;
 };
 
 static void
 diseqc_send_msg (int fd, fe_sec_voltage_t v, struct diseqc_cmd *cmd,
 		 fe_sec_tone_mode_t t, fe_sec_mini_cmd_t b)
 {
-  ioctl (fd, FE_SET_TONE, SEC_TONE_OFF);
-  ioctl (fd, FE_SET_VOLTAGE, v);
-  usleep (15 * 1000);
-  ioctl (fd, FE_DISEQC_SEND_MASTER_CMD, &cmd->cmd);
-  usleep (cmd->wait * 1000);
-  usleep (15 * 1000);
-  ioctl (fd, FE_DISEQC_SEND_BURST, b);
-  usleep (15 * 1000);
-  ioctl (fd, FE_SET_TONE, t);
+	ioctl (fd, FE_SET_TONE, SEC_TONE_OFF);
+	ioctl (fd, FE_SET_VOLTAGE, v);
+	usleep (15 * 1000);
+	ioctl (fd, FE_DISEQC_SEND_MASTER_CMD, &cmd->cmd);
+	usleep (cmd->wait * 1000);
+	usleep (15 * 1000);
+	ioctl (fd, FE_DISEQC_SEND_BURST, b);
+	usleep (15 * 1000);
+	ioctl (fd, FE_SET_TONE, t);
 }
 
 
@@ -85,18 +80,18 @@ diseqc_send_msg (int fd, fe_sec_voltage_t v, struct diseqc_cmd *cmd,
 static int
 do_diseqc (int secfd, int sat_no, int pol, int hi_lo)
 {
-  struct diseqc_cmd cmd = { {{0xe0, 0x10, 0x38, 0xf0, 0x00, 0x00}, 4}, 0 };
-
-  /* param: high nibble: reset bits, low nibble set bits,
-   * bits are: option, position, polarizaion, band
-   */
-  cmd.cmd.msg[3] =
-    0xf0 | (((sat_no * 4) & 0x0f) | (hi_lo ? 1 : 0) | (pol ? 0 : 2));
-
-  diseqc_send_msg (secfd, pol,
-		   &cmd, hi_lo, (sat_no / 4) % 2 ? SEC_MINI_B : SEC_MINI_A);
-
-  return 1;
+	struct diseqc_cmd cmd = { {{0xe0, 0x10, 0x38, 0xf0, 0x00, 0x00}, 4}, 0 };
+	
+	/* param: high nibble: reset bits, low nibble set bits,
+	* bits are: option, position, polarizaion, band
+	*/
+	cmd.cmd.msg[3] =
+	0xf0 | (((sat_no * 4) & 0x0f) | (hi_lo ? 1 : 0) | (pol ? 0 : 2));
+	
+	diseqc_send_msg (secfd, pol,
+			&cmd, hi_lo, (sat_no / 4) % 2 ? SEC_MINI_B : SEC_MINI_A);
+	
+	return 1;
 }
 
 
@@ -104,102 +99,103 @@ static int
 check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
 	      int tone)
 {
-  int32_t strength;
-  fe_status_t festatus;
-  struct dvb_frontend_info fe_info;
-  struct dvb_frontend_event event;
-  struct pollfd pfd[1];
-  int status;
-
-  if (ioctl (fd_frontend, FE_SET_FRONTEND, feparams) < 0)
-    {
-      perror ("ERROR tuning channel\n");
-      return -1;
-    }
-
-  pfd[0].fd = fd_frontend;
-  pfd[0].events = POLLIN;
-
-  if ((status = ioctl (fd_frontend, FE_GET_INFO, &fe_info) < 0))
-    {
-      perror ("FE_GET_INFO: ");
-      return -1;
-    }
-
-  event.status = 0;
-  while (((event.status & FE_TIMEDOUT) == 0)
-	 && ((event.status & FE_HAS_LOCK) == 0))
-    {
-    //fprintf (stderr, "Polling....\n");
-    if (poll (pfd, 1, 10000))
-	{
-	  if (pfd[0].revents & POLLIN)
-	    {
-	      //fprintf (stderr, "Getting frontend event\n");
-	      if ((status = ioctl (fd_frontend, FE_GET_EVENT, &event)) < 0)
-		{
-		  if (errno != EOVERFLOW)
-		    {
-		      perror ("FE_GET_EVENT");
-		      fprintf (stderr, "status = %d\n", status);
-		      fprintf (stderr, "errno = %d\n", errno);
-		      return -1;
-		    }
-		  else
-		    fprintf (stderr,
-			     "Overflow error, trying again (status = %d, errno = %d)",
-			     status, errno);
-		}
-	    }
-	  print_status (stderr, event.status);
-	}
-    }
-
-
-  if (event.status & FE_HAS_LOCK)
-    {
+	int32_t strength;
+	fe_status_t festatus;
+	struct dvb_frontend_info fe_info;
+	struct dvb_frontend_event event;
+	struct pollfd pfd[1];
+	int status;
 	
-	fprintf (stderr, "Gained lock:\n");
-
-      switch (fe_info.type)
+	if (ioctl (fd_frontend, FE_SET_FRONTEND, feparams) < 0)
 	{
-	case FE_OFDM:
-	  fprintf (stderr, "  Frontend Type: OFDM\n");
-	  fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
-	  break;
-	case FE_QPSK:
-	  fprintf (stderr, "  Frontend Type: QPSK\n");
-	  fprintf (stderr, "  Frequency: %d\n",
-		   (unsigned int) ((event.parameters.frequency) +
-				   (tone == SEC_TONE_OFF ? LOF1 : LOF2)));
-	  fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qpsk.symbol_rate);
-	  fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qpsk.fec_inner);
-	  break;
-	case FE_QAM:
-	  fprintf (stderr, "  Frontend Type: QAM\n");
-	  fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
-	  fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qam.symbol_rate);
-	  fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qam.fec_inner);
-	  break;
-	default:
-	  break;
+		perror ("ERROR tuning channel\n");
+		return -1;
+	}
+	
+	pfd[0].fd = fd_frontend;
+	pfd[0].events = POLLIN;
+	
+	if ((status = ioctl (fd_frontend, FE_GET_INFO, &fe_info) < 0))
+	{
+		perror ("FE_GET_INFO: ");
+		return -1;
 	}
 
-      strength = 0;
-      ioctl (fd_frontend, FE_READ_BER, &strength);
-      fprintf (stderr, "  Bit error rate: %d\n", strength);
+	event.status = 0;
+	while (((event.status & FE_TIMEDOUT) == 0)
+			&& ((event.status & FE_HAS_LOCK) == 0))
+	{
+		//fprintf (stderr, "Polling....\n");
+		if (poll (pfd, 1, 10000))
+		{
+			if (pfd[0].revents & POLLIN)
+			{
+				//fprintf (stderr, "Getting frontend event\n");
+				if ((status = ioctl (fd_frontend, FE_GET_EVENT, &event)) < 0)
+				{
+					if (errno != EOVERFLOW) {
+						perror ("FE_GET_EVENT");
+						fprintf (stderr, "  status = %d\n", status);
+						fprintf (stderr, "  errno = %d\n", errno);
+						return -1;
+					} else {
+						fprintf (stderr, 
+						"Overflow error, trying again (status = %d, errno = %d)\n",
+						status, errno);
+					}
+				}
+				
+			}
+				
+			print_status (stderr, event.status);
+		}
+	}
+	
 
-      strength = 0;
-      ioctl (fd_frontend, FE_READ_SIGNAL_STRENGTH, &strength);
-      fprintf (stderr, "  Signal strength: %d\n", strength);
+	if (event.status & FE_HAS_LOCK)
+	{
 
-      strength = 0;
-      ioctl (fd_frontend, FE_READ_SNR, &strength);
-      fprintf (stderr, "  SNR: %d\n", strength);
+		fprintf (stderr, "Gained lock:\n");
 
-      festatus = 0;
-      ioctl (fd_frontend, FE_READ_STATUS, &festatus);
-      print_status (stderr, festatus);
+		switch (fe_info.type) {
+			case FE_OFDM:
+				fprintf (stderr, "  Frontend Type: OFDM\n");
+				fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
+				break;
+			case FE_QPSK:
+				fprintf (stderr, "  Frontend Type: QPSK\n");
+				fprintf (stderr, "  Frequency: %d\n",
+				   (unsigned int) ((event.parameters.frequency) +
+						   (tone == SEC_TONE_OFF ? LOF1 : LOF2)));
+				fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qpsk.symbol_rate);
+				fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qpsk.fec_inner);
+				break;
+			case FE_QAM:
+				fprintf (stderr, "  Frontend Type: QAM\n");
+				fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
+				fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qam.symbol_rate);
+				fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qam.fec_inner);
+				break;
+			default:
+				fprintf (stderr, "  Frontend Type: Unknown\n");
+				break;
+			}
+
+	  strength = 0;
+	  ioctl (fd_frontend, FE_READ_BER, &strength);
+	  fprintf (stderr, "  Bit error rate: %d\n", strength);
+
+	  strength = 0;
+	  ioctl (fd_frontend, FE_READ_SIGNAL_STRENGTH, &strength);
+	  fprintf (stderr, "  Signal strength: %d\n", strength);
+
+	  strength = 0;
+	  ioctl (fd_frontend, FE_READ_SNR, &strength);
+	  fprintf (stderr, "  SNR: %d\n", strength);
+
+	  festatus = 0;
+	  ioctl (fd_frontend, FE_READ_STATUS, &festatus);
+	  print_status (stderr, festatus);
       
     } else {
 		fprintf(stderr, "Not able to lock to the signal on the given frequency\n");
@@ -221,96 +217,130 @@ tune_it (int fd_frontend, dvbshout_tuning_t * set)
 	struct dvb_frontend_info fe_info;
 	fe_sec_voltage_t voltage;
 
-  if ((res = ioctl (fd_frontend, FE_GET_INFO, &fe_info) < 0))
-    {
-      perror ("FE_GET_INFO: ");
-      return -1;
+	if ((res = ioctl (fd_frontend, FE_GET_INFO, &fe_info) < 0))
+	{
+		perror ("FE_GET_INFO: ");
+		return -1;
+	}
+	
+
+	fprintf (stderr, "DVB card name: \"%s\"\n", fe_info.name);
+
+
+	switch (fe_info.type)
+	{
+		// DVB-T
+		case FE_OFDM:
+			feparams.frequency = set->frequency;
+			feparams.inversion =  set->inversion;
+			feparams.u.ofdm.bandwidth = set->bandwidth;
+			feparams.u.ofdm.code_rate_HP = set->code_rate_hp;
+			feparams.u.ofdm.code_rate_LP =  set->code_rate_lp;
+			feparams.u.ofdm.constellation = set->modulation;
+			feparams.u.ofdm.transmission_mode = set->transmission_mode;
+			feparams.u.ofdm.guard_interval = set->guard_interval;
+			feparams.u.ofdm.hierarchy_information = set->hierarchy;
+			fprintf (stderr, "Tuning DVB-T to %d\n", set->frequency);
+		break;
+
+
+		// DVB-S
+		case FE_QPSK:
+			set->frequency *= 1000;
+			set->symbol_rate *= 1000;
+			
+			fprintf (stderr, "Tuning DVB-S to %d, Pol:%c Srate=%d, 22kHz=%s\n",
+			   set->frequency, set->polarity, set->symbol_rate,
+			   set->tone == SEC_TONE_ON ? "on" : "off");
+			   
+			   
+			if ((set->polarity == 'h') || (set->polarity == 'H'))
+					voltage = SEC_VOLTAGE_18;
+			else	voltage = SEC_VOLTAGE_13;
+			
+			if (set->diseqc == 0) {
+				if (ioctl (fd_frontend, FE_SET_VOLTAGE, voltage) < 0) {
+					perror ("ERROR setting voltage\n");
+				}
+			}
+
+			if (set->frequency > 2200000) {
+				// this must be an absolute frequency
+				if (set->frequency < SLOF) {
+					feparams.frequency = (set->frequency - LOF1);
+					if (set->tone < 0) set->tone = SEC_TONE_OFF;
+				} else {
+					feparams.frequency = (set->frequency - LOF2);
+					if (set->tone < 0) set->tone = SEC_TONE_ON;
+				}
+			} else {
+				// this is an L-Band frequency
+				feparams.frequency = set->frequency;
+			}
+
+			feparams.inversion = set->inversion;
+			feparams.u.qpsk.symbol_rate = set->symbol_rate;
+			feparams.u.qpsk.fec_inner = set->fec_inner;
+
+			if (set->diseqc == 0)
+			{
+				if (ioctl (fd_frontend, FE_SET_TONE, set->tone) < 0)
+					perror ("ERROR setting tone\n");
+			}
+
+			if (set->diseqc > 0)
+			{
+				do_diseqc (fd_frontend, set->diseqc - 1, voltage, set->tone);
+				sleep (1);
+			}
+		break;
+		
+		
+		// DVB-C
+		case FE_QAM:
+			fprintf (stderr, "Tuning DVB-C to %d, srate=%d\n", set->frequency, set->symbol_rate);
+			feparams.frequency = set->frequency;
+			feparams.inversion = set->inversion;
+			feparams.u.qam.symbol_rate = set->symbol_rate;
+			feparams.u.qam.fec_inner = set->fec_inner;
+			feparams.u.qam.modulation = set->modulation;
+		break;
+		
+		default:
+			fprintf (stderr, "Unknown frontend type. Aborting.\n");
+			exit (-1);
+		break;
     }
+    
+	usleep (100000);
 
-
-  fprintf (stderr, "DVB card name: \"%s\"\n", fe_info.name);
-
-  switch (fe_info.type)
-    {
-    case FE_OFDM:
-      feparams.frequency = set->freq;
-      feparams.inversion = INVERSION_OFF;
-      feparams.u.ofdm.bandwidth = set->bandwidth;
-      feparams.u.ofdm.code_rate_HP = set->code_rate;
-      feparams.u.ofdm.code_rate_LP = LP_CODERATE_DEFAULT;
-      feparams.u.ofdm.constellation = set->modulation;
-      feparams.u.ofdm.transmission_mode = set->transmission_mode;
-      feparams.u.ofdm.guard_interval = set->guard_interval;
-      feparams.u.ofdm.hierarchy_information = HIERARCHY_DEFAULT;
-      fprintf (stderr, "Tuning DVB-T to %d\n", set->freq);
-      break;
-    case FE_QPSK:
-    	set->freq *= 1000;
-    	set->srate *= 1000;
-      fprintf (stderr, "Tuning DVB-S to %d, Pol:%c Srate=%d, 22kHz=%s\n",
-	       set->freq, set->polarity, set->srate,
-	       set->tone == SEC_TONE_ON ? "on" : "off");
-      if ((set->polarity == 'h') || (set->polarity == 'H'))
-	{
-	  voltage = SEC_VOLTAGE_18;
-	}
-      else
-	{
-	  voltage = SEC_VOLTAGE_13;
-	}
-      if (set->diseqc == 0)
-	if (ioctl (fd_frontend, FE_SET_VOLTAGE, voltage) < 0)
-	  {
-	    perror ("ERROR setting voltage\n");
-	  }
-
-      if (set->freq > 2200000)
-	{
-	  // this must be an absolute frequency
-	  if (set->freq < SLOF) {
-	      feparams.frequency = (set->freq - LOF1);
-	      if (set->tone < 0) set->tone = SEC_TONE_OFF;
-	    } else {
-	      feparams.frequency = (set->freq - LOF2);
-	      if (set->tone < 0) set->tone = SEC_TONE_ON;
-	    }
-	} else {
-	  // this is an L-Band frequency
-	  feparams.frequency = set->freq;
-	}
-
-      feparams.inversion = set->spec_inv;
-      feparams.u.qpsk.symbol_rate = set->srate;
-      feparams.u.qpsk.fec_inner = FEC_AUTO;
-
-      if (set->diseqc == 0)
-	{
-	  if (ioctl (fd_frontend, FE_SET_TONE, set->tone) < 0)
-	    {
-	      perror ("ERROR setting tone\n");
-	    }
-	}
-
-      if (set->diseqc > 0)
-	{
-	  do_diseqc (fd_frontend, set->diseqc - 1, voltage, set->tone);
-	  sleep (1);
-	}
-      break;
-    case FE_QAM:
-      fprintf (stderr, "Tuning DVB-C to %d, srate=%d\n", set->freq, set->srate);
-      feparams.frequency = set->freq;
-      feparams.inversion = INVERSION_OFF;
-      feparams.u.qam.symbol_rate = set->srate;
-      feparams.u.qam.fec_inner = FEC_AUTO;
-      feparams.u.qam.modulation = set->modulation;
-      break;
-    default:
-      fprintf (stderr, "Unknown frontend type. Aborting.\n");
-      exit (-1);
-    }
-  usleep (100000);
-
-  return (check_status (fd_frontend, &feparams, set->tone));
+	return (check_status(fd_frontend, &feparams, set->tone));
 }
+
+
+dvbshout_tuning_t * init_tuning_defaults()
+{
+	dvbshout_tuning_t *set = malloc( sizeof(dvbshout_tuning_t) );
+	
+	set->card = 0;
+	set->type = 's';
+	set->frequency = 0;
+	set->polarity = 'v';
+	set->symbol_rate = SYMBOLRATE_DEFAULT;
+	set->diseqc = DISEQC_DEFAULT;
+	set->tone = SEC_TONE_DEFAULT;
+	
+	set->inversion = INVERSION_DEFAULT;
+	set->bandwidth = BANDWIDTH_DEFAULT;
+	set->code_rate_hp = CODERATE_HP_DEFAULT;
+	set->code_rate_lp = CODERATE_LP_DEFAULT;
+	set->fec_inner = FEC_INNER_DEFAULT;
+	set->modulation = MODULATON_DEFAULT;
+	set->hierarchy = HIERARCHY_DEFAULT;
+	set->transmission_mode = TRANSMISSION_MODE_DEFAULT;
+	set->guard_interval = GUARD_INTERVAL_DEFAULT;
+	
+	return set;
+}
+
 

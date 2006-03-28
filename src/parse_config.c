@@ -78,6 +78,25 @@ static void process_statement_multicast( char* name, char* value, int line_num )
 	
 }
 
+static int parse_fec( const char* value, int line_num ) {
+	if (!strcmp(value,"auto")) {
+		return FEC_AUTO;
+	} else if (!strcmp(value,"1_2")) {
+		return FEC_1_2;
+	} else if (!strcmp(value,"2_3")) {
+		return FEC_2_3;
+	} else if (!strcmp(value,"3_4")) {
+		return FEC_3_4;
+	} else if (!strcmp(value,"5_6")) {
+		return FEC_5_6;
+	} else if (!strcmp(value,"7_8")) {
+		return FEC_7_8;
+	} else {
+		fprintf(stderr,"Error parsing configuation line %d: invalid FEC code\n", line_num);
+		exit(-1);
+	}
+}
+
 
 static void process_statement_tuning( char* name, char* value, int line_num )
 {
@@ -90,54 +109,29 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 			fprintf(stderr,"Error parsing configuation line %d: invalid DVB card type (%c)\n", line_num, dvbshout_tuning->type);
 			exit(-1);
 		}
+		
+		
 	} else if (strcmp( "frequency", name ) == 0) { 
-		dvbshout_tuning->freq = atoi( value );
+		dvbshout_tuning->frequency = atoi( value );
 	} else if (strcmp( "polarity", name ) == 0) { 
 		dvbshout_tuning->polarity = tolower(value[0]);
 	} else if (strcmp( "symbol_rate", name ) == 0) { 
-		dvbshout_tuning->srate = atoi( value );
-	} else if (strcmp( "modulation", name ) == 0) { 
-		switch( atoi( value ) ) {
-			case 16:  dvbshout_tuning->modulation=QAM_16; break;
-			case 32:  dvbshout_tuning->modulation=QAM_32; break;
-			case 64:  dvbshout_tuning->modulation=QAM_64; break;
-			case 128: dvbshout_tuning->modulation=QAM_128; break;
-			case 256: dvbshout_tuning->modulation=QAM_256; break;
-			default:
-				fprintf(stderr,"Error parsing configuation line %d: invalid QAM rate\n", line_num);
-				exit(-1);
-			break;
-        }
-        
-	} else if (strcmp( "guard_interval", name ) == 0) { 
-		switch( atoi( value ) ) {
-			case 32:  dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_32; break;
-			case 16:  dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_16; break;
-			case 8:   dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_8; break;
-			case 4:   dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_4; break;
-			default:
-				fprintf(stderr,"Error parsing configuation line %d: invalid Guard Interval\n", line_num);
-				exit(-1);
-			break;
-        }
-        
-	} else if (strcmp( "code_rate", name ) == 0) { 
-        if (!strcmp(value,"auto")) {
-          dvbshout_tuning->code_rate=FEC_AUTO;
-        } else if (!strcmp(value,"1_2")) {
-          dvbshout_tuning->code_rate=FEC_1_2;
-        } else if (!strcmp(value,"2_3")) {
-          dvbshout_tuning->code_rate=FEC_2_3;
-        } else if (!strcmp(value,"3_4")) {
-          dvbshout_tuning->code_rate=FEC_3_4;
-        } else if (!strcmp(value,"5_6")) {
-          dvbshout_tuning->code_rate=FEC_5_6;
-        } else if (!strcmp(value,"7_8")) {
-          dvbshout_tuning->code_rate=FEC_7_8;
-        } else {
-			fprintf(stderr,"Error parsing configuation line %d: invalid code rate\n", line_num);
+		dvbshout_tuning->symbol_rate = atoi( value );
+	} else if (strcmp( "tone", name ) == 0) { 
+		dvbshout_tuning->tone = atoi( value );
+		
+
+	} else if (strcmp( "inversion", name ) == 0) { 
+		if (!strcmp(value,"off")) {
+			dvbshout_tuning->inversion=INVERSION_OFF;
+		} else if (!strcmp(value,"on")) {
+			dvbshout_tuning->inversion=INVERSION_ON;
+		} else if (!strcmp(value,"auto")) {
+			dvbshout_tuning->inversion=INVERSION_AUTO;
+		} else {
+			fprintf(stderr,"Error parsing configuation line %d: invalid inversion mode\n", line_num);
 			exit(-1);
-        }
+		}
 
 	} else if (strcmp( "bandwidth", name ) == 0) { 
 		switch(atoi(value)) {
@@ -150,6 +144,44 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 			break;
 		}
 
+	} else if (strcmp( "code_rate_hp", name ) == 0) { 
+		dvbshout_tuning->code_rate_hp = parse_fec( value, line_num );
+
+	} else if (strcmp( "code_rate_lp", name ) == 0) { 
+		dvbshout_tuning->code_rate_lp = parse_fec( value, line_num );
+
+	} else if (strcmp( "fec_inner", name ) == 0) { 
+		dvbshout_tuning->fec_inner = parse_fec( value, line_num );
+		
+	} else if (strcmp( "modulation", name ) == 0) { 
+		switch( atoi( value ) ) {
+			case 16:  dvbshout_tuning->modulation=QAM_16; break;
+			case 32:  dvbshout_tuning->modulation=QAM_32; break;
+			case 64:  dvbshout_tuning->modulation=QAM_64; break;
+			case 128: dvbshout_tuning->modulation=QAM_128; break;
+			case 256: dvbshout_tuning->modulation=QAM_256; break;
+			default:
+				fprintf(stderr,"Error parsing configuation line %d: invalid modulation QAM rate\n", line_num);
+				exit(-1);
+			break;
+        }
+
+	} else if (strcmp( "hierarchy", name ) == 0) { 
+		if (!strcmp(value,"none")) {
+			dvbshout_tuning->hierarchy=HIERARCHY_NONE;
+		} else if (!strcmp(value,"1")) {
+			dvbshout_tuning->hierarchy=HIERARCHY_1;
+		} else if (!strcmp(value,"2")) {
+			dvbshout_tuning->hierarchy=HIERARCHY_2;
+		} else if (!strcmp(value,"3")) {
+			dvbshout_tuning->hierarchy=HIERARCHY_4;
+		} else if (!strcmp(value,"auto")) {
+			dvbshout_tuning->hierarchy=HIERARCHY_AUTO;
+		} else {
+			fprintf(stderr,"Error parsing configuation line %d: invalid hierarchy mode\n", line_num);
+			exit(-1);
+		}
+
 	} else if (strcmp( "transmission_mode", name ) == 0) { 
 		switch(atoi(value)) {
 			case 8:   dvbshout_tuning->transmission_mode=TRANSMISSION_MODE_8K; break;
@@ -159,6 +191,20 @@ static void process_statement_tuning( char* name, char* value, int line_num )
 				exit(-1);
 			break;
 		}
+
+	} else if (strcmp( "guard_interval", name ) == 0) { 
+		if (!strcmp(value,"1_32")) {
+			dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_32;
+		} else if (!strcmp(value,"1_16")) {
+			dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_16;
+		} else if (!strcmp(value,"1_8")) {
+			dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_8;
+		} else if (!strcmp(value,"1_4")) {
+			dvbshout_tuning->guard_interval=GUARD_INTERVAL_1_4;
+		} else {
+			fprintf(stderr,"Error parsing configuation line %d: invalid guard interval\n", line_num);
+			exit(-1);
+        }
         
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'tuning'.\n", line_num);

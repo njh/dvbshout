@@ -56,27 +56,6 @@ char* demuxdev[4]={"/dev/dvb/adapter0/demux0","/dev/dvb/adapter1/demux0","/dev/d
 
 
 
-static dvbshout_tuning_t * init_tuning_settings()
-{
-	dvbshout_tuning_t *set = malloc( sizeof(dvbshout_tuning_t) );
-	
-	set->card = 0;
-	set->freq = 0;
-	set->srate = 27500000;
-	set->polarity = 'V';
-	set->tone = -1;
-	
-	set->diseqc=0;
-	set->spec_inv=INVERSION_AUTO;
-	set->modulation=CONSTELLATION_DEFAULT;
-	set->transmission_mode=TRANSMISSION_MODE_DEFAULT;
-	set->bandwidth=BANDWIDTH_DEFAULT;
-	set->guard_interval=GUARD_INTERVAL_DEFAULT;
-	set->code_rate=CODERATE_DEFAULT;
-	
-	return set;
-}
-
 
 
 
@@ -459,7 +438,7 @@ int main(int argc, char **argv)
 	
 	
 	// Initialise data structures
-	dvbshout_tuning = init_tuning_settings();
+	dvbshout_tuning = init_tuning_defaults();
 	for (i=0;i<MAX_PID_COUNT;i++) channel_map[i]=NULL;
 	for (i=0;i<MAX_CHANNEL_COUNT;i++) channels[i]=NULL;
 	memset( &dvbshout_server, 0, sizeof(dvbshout_server_t) );
@@ -497,7 +476,7 @@ int main(int argc, char **argv)
 	}
 
 	// Tune in the frontend
-	if ((dvbshout_tuning->freq!=0) && (dvbshout_tuning->polarity!=0)) {
+	if (dvbshout_tuning->frequency!=0) {
 		int err =tune_it(fd_frontend, dvbshout_tuning);
 		if (err<0) { exit(err); }
 	} else {
