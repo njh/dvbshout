@@ -158,21 +158,26 @@ check_status (int fd_frontend, struct dvb_frontend_parameters *feparams,
 		fprintf (stderr, "Gained lock:\n");
 
 		switch (fe_info.type) {
+			// DVB-T
 			case FE_OFDM:
 				fprintf (stderr, "  Frontend Type: OFDM\n");
-				fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
+				fprintf (stderr, "  Frequency: %d Hz\n", event.parameters.frequency);
 				break;
+			
+			// DVB-S
 			case FE_QPSK:
 				fprintf (stderr, "  Frontend Type: QPSK\n");
-				fprintf (stderr, "  Frequency: %d\n",
+				fprintf (stderr, "  Frequency: %d kHz\n",
 				   (unsigned int) ((event.parameters.frequency) +
 						   (tone == SEC_TONE_OFF ? LOF1 : LOF2)));
 				fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qpsk.symbol_rate);
 				fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qpsk.fec_inner);
 				break;
+				
+			// DVB-C
 			case FE_QAM:
 				fprintf (stderr, "  Frontend Type: QAM\n");
-				fprintf (stderr, "  Frequency: %d\n", event.parameters.frequency);
+				fprintf (stderr, "  Frequency: %d Hz\n", event.parameters.frequency);
 				fprintf (stderr, "  SymbolRate: %d\n", event.parameters.u.qam.symbol_rate);
 				fprintf (stderr, "  FEC Inner: %d\n", event.parameters.u.qam.fec_inner);
 				break;
@@ -240,7 +245,7 @@ tune_it (int fd_frontend, dvbshout_tuning_t * set)
 			feparams.u.ofdm.transmission_mode = set->transmission_mode;
 			feparams.u.ofdm.guard_interval = set->guard_interval;
 			feparams.u.ofdm.hierarchy_information = set->hierarchy;
-			fprintf (stderr, "Tuning DVB-T to %d\n", set->frequency);
+			fprintf (stderr, "Tuning DVB-T to %d Hz\n", set->frequency);
 		break;
 
 
@@ -249,7 +254,7 @@ tune_it (int fd_frontend, dvbshout_tuning_t * set)
 			set->frequency *= 1000;
 			set->symbol_rate *= 1000;
 			
-			fprintf (stderr, "Tuning DVB-S to %d, Pol:%c Srate=%d, 22kHz=%s\n",
+			fprintf (stderr, "Tuning DVB-S to %d kHz, Pol:%c Srate=%d, 22kHz=%s\n",
 			   set->frequency, set->polarity, set->symbol_rate,
 			   set->tone == SEC_TONE_ON ? "on" : "off");
 			   
@@ -298,7 +303,7 @@ tune_it (int fd_frontend, dvbshout_tuning_t * set)
 		
 		// DVB-C
 		case FE_QAM:
-			fprintf (stderr, "Tuning DVB-C to %d, srate=%d\n", set->frequency, set->symbol_rate);
+			fprintf (stderr, "Tuning DVB-C to %d Hz, srate=%d\n", set->frequency, set->symbol_rate);
 			feparams.frequency = set->frequency;
 			feparams.inversion = set->inversion;
 			feparams.u.qam.symbol_rate = set->symbol_rate;
