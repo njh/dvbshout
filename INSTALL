@@ -3,7 +3,8 @@ Installing dvbshout
 
 Requirements:
 
-  libshout 2.1 <http://www.icecast.org/download.php>
+  libshout 2.2 <http://www.icecast.org/download.php>
+  ortp 0.9.1 <http://linphone.org/ortp/>
 
 Quick Start:
 
