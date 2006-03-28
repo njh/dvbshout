@@ -10,6 +10,11 @@ an Icecast/Shoutcast server and/or a RTP multicast packet stream.
 It has only been tested with DVB-S and DVB-T, but should also 
 work with DVB-C.
 
+The HTTP streams can be played back in most MPEG Audio players 
+(eg iTunes, WinAmp etc). The multicast streams have been tested 
+with QuickTime and VLC, however notably, they don't seem to playback 
+correctly in Real Player.
+
 For the latest version of dvbshout, please see:
 http://www.ecs.soton.ac.uk/~njh/dvbshout/
 
