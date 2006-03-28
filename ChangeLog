@@ -1,3 +1,15 @@
+Tue Mar 28 23:25:16 BST 2006 Nicholas J. Humfrey <njh@aelius.com>
+
+  * Released version 0.2
+  * Added RTP/multicast support
+  * Fixed support for DVB-T and DVB-C
+  * Added MPEG Audio header parser
+  * Now requires version 2.2 of libshout
+  * Add reporting of audio format to server
+  * Added TS continuity check
+  * Added adaptation field awareness
+  
+
 Tue Mar 21 17:12:38 GMT 2006 Nicholas J. Humfrey <njh@aelius.com>
 
   * Initial Release (version 0.1)

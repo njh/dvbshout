@@ -5,10 +5,10 @@ Nicholas J. Humfrey <njh@aelius.com>
 
 dvbshout takes an MPEG transport stream from a DVB card, 
 extracts audio channels from stream, and sends the audio to
-an Icecast/Shoutcast server.
+an Icecast/Shoutcast server and/or a RTP multicast packet stream.
 
-It had only been tested with DVB-S, but should also 
-work with DVB-C and DVB-T.
+It has only been tested with DVB-S and DVB-T, but should also 
+work with DVB-C.
 
 For the latest version of dvbshout, please see:
 http://www.ecs.soton.ac.uk/~njh/dvbshout/
@@ -38,11 +38,6 @@ TODO
 ====
 
 More error checking of incoming streams. 
-Add RTP support.
-Add generation of SDP files.
 Quiet/verbose command line switches.
-Add reporting of audio format to server.
-
-Fix DVB-T/DVB-C? support
-
+Link the multicast packet timestamps to PES packet timestamps
 
