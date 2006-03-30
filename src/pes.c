@@ -39,7 +39,7 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dv
 {
 	size_t pes_len = PES_PACKET_LEN(buf);
 	size_t pes_header_len = PES_PACKET_HEAD_LEN(buf);
-	int stream_id = PES_PACKET_STREAM_ID(buf);
+	unsigned char stream_id = PES_PACKET_STREAM_ID(buf);
 
 	if( PES_PACKET_SYNC_BYTE1(buf) != 0x00 ||
 	    PES_PACKET_SYNC_BYTE2(buf) != 0x00 ||
@@ -49,15 +49,24 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dv
 		return 0;
 	}
 	
-	// 0xC0 = First MPEG-2 audio steam
-	if( stream_id != 0xC0 )
+	// Stream IDs in range 0xC0-0xDF are MPEG audio
+	if( stream_id != chan->pes_stream_id )
 	{
-		fprintf(stderr, "Ignoring stream with ID 0x%x (pid: %d).\n", stream_id, chan->pid);
-		return 0;
+		if (stream_id < 0xC0 || stream_id > 0xDF) {
+			fprintf(stderr, "Ignoring non-mpegaudio stream ID 0x%x (pid: %d).\n", stream_id, chan->pid);
+			return 0;
+		}
+	
+		if (chan->pes_stream_id == 0) {
+			// keep the first stream we see
+			chan->pes_stream_id = stream_id;	
+		} else {
+			fprintf(stderr, "Ignoring additional audio stream ID 0x%x (pid: %d).\n", stream_id, chan->pid);
+			return 0;
+		}
+	
 	}
 	
-	// only keep the first stream we see
-	chan->pes_stream_id = stream_id;
 	
 	// Check PES Extension header 
 	if( PES_PACKET_SYNC_CODE(buf) != 0x2 )

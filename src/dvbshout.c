@@ -249,7 +249,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 			if (mpa_header_parse(es_ptr, &chan->mpah)) {
 
 				// Now we know bitrate etc, set things up
-				fprintf(stderr, "Synced to MPEG audio for '%s' (pid: %d)\n",  chan->name, chan->pid );
+				fprintf(stderr, "Synced to MPEG audio for '%s' (pid: %d, stream: 0x%x)\n",  chan->name, chan->pid, chan->pes_stream_id );
 				mpa_header_print( &chan->mpah );
 				chan->synced = 1;
 				
