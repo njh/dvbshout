@@ -70,6 +70,9 @@ foreach my $channel ( @$channels ) {
 	my $sdp = Net::SDP->new();
 	$sdp->session_name( $channel->{'name'} );
 	$sdp->session_attribute( 'x-qt-text-nam', $channel->{'name'} );
+	$sdp->session_attribute( 'x-qt-text-url', $channel->{'url'} );
+	$sdp->session_attribute( 'x-qt-text-inf', $channel->{'description'} );
+	$sdp->session_attribute( 'x-qt-text-gen', $channel->{'genre'} );
 	$sdp->session_info( $channel->{'description'} );
 	$sdp->session_uri( $channel->{'url'} );
 	my $time = $sdp->new_time_desc();
@@ -107,9 +110,9 @@ foreach my $channel ( @$channels ) {
 	print HTML "<tr>\n";
 	print HTML "\t<td><a href='$url.m3u'><img src='speaker.png' width='22' height='20' alt='Listen!' /></a></td>\n";
 	print HTML "\t<td>".$channel->{'name'}."</td>\n";
-	print HTML "\t<td><a href='".$channel->{'url'}."'>Web</a></td>\n";
 	print HTML "\t<td>".$channel->{'pid'}."</td>\n";
 	print HTML "\t<td><a href='$sdpfile'>$sdpfile</a></td>\n";
+	print HTML "\t<td><a href='".$channel->{'url'}."'>".$channel->{'description'}."</a></td>\n";
 	print HTML "</tr>\n\n";
 	
 	print M3U "$url\n";

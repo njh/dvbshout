@@ -83,7 +83,7 @@ print OUTPUT "[multicast]\n";
 print OUTPUT "ttl: 5\n";
 print OUTPUT "port: 5004\n";
 print OUTPUT "mtu: 1450\n";
-print OUTPUT "interface: eth0\n\n";
+print OUTPUT "loopback: 0\n\n";
 
 my $wrote = 0;
 if ($cardtype eq 's') {

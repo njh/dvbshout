@@ -74,8 +74,8 @@
 /* Defaults for Multicast */
 #define MULTICAST_TTL_DEFAULT			(5)
 #define MULTICAST_PORT_DEFAULT			(5004)
-#define MULTICAST_INTERFACE_DEFAULT		"eth0"
 #define MULTICAST_MTU_DEFAULT			(1450)
+#define MULTICAST_LOOPBACK_DEFAULT		(0)
  
 
 
@@ -190,6 +190,7 @@ typedef struct dvbshout_channel_s {
 	char multicast_local[STR_BUF_SIZE];	// Local IP
 	int multicast_port;					// Multicast Port
 	int multicast_ttl;					// Multicast TTL
+	int multicast_loopback;				// Multicast Loopback
 	int multicast_mtu;					// Maxium Transmission Unit (of payload)
 	int multicast_ts;					// Session Timestamp
 	
@@ -205,7 +206,7 @@ typedef struct dvbshout_multicast_s {
 	int ttl;
 	int port;
 	int mtu;
-	char interface[STR_BUF_SIZE];
+	int loopback;
 } dvbshout_multicast_t;
 
 

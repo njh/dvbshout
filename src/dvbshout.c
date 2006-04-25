@@ -174,8 +174,10 @@ static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 	// Create new session
 	session=rtp_session_new(RTP_SESSION_SENDONLY);
 	rtp_session_set_remote_addr(session, chan->multicast_ip, chan->multicast_port);
+	rtp_session_set_multicast_ttl(session, chan->multicast_ttl);
+	rtp_session_set_multicast_loopback(session, chan->multicast_loopback);
 	rtp_session_set_payload_type(session, RTP_MPEG_AUDIO_PT);
-
+	
 	return session;	
 }
 
@@ -453,8 +455,8 @@ int main(int argc, char **argv)
 	// Default settings defaults
 	dvbshout_multicast.ttl = MULTICAST_TTL_DEFAULT;
 	dvbshout_multicast.port = MULTICAST_PORT_DEFAULT;
-	strcpy(dvbshout_multicast.interface, MULTICAST_INTERFACE_DEFAULT);
 	dvbshout_multicast.mtu = MULTICAST_MTU_DEFAULT;
+	dvbshout_multicast.loopback = MULTICAST_LOOPBACK_DEFAULT;
 
 
 	// Initialise libshout

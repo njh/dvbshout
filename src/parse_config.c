@@ -67,10 +67,10 @@ static void process_statement_multicast( char* name, char* value, int line_num )
 		dvbshout_multicast.port = atoi( value );
 	} else if (strcmp( "user", name ) == 0) { 
 		dvbshout_multicast.port = atoi( value );
-	} else if (strcmp( "interface", name ) == 0) { 
-		strncpy( dvbshout_multicast.interface, value, STR_BUF_SIZE);
 	} else if (strcmp( "mtu", name ) == 0) {
 		dvbshout_multicast.mtu = atoi( value );
+	} else if (strcmp( "loopback", name ) == 0) {
+		dvbshout_multicast.loopback = atoi( value );
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'multicast'.\n", line_num);
 		exit(-1);
@@ -264,6 +264,9 @@ static void process_statement_channel( char* name, char* value, int line_num )
 		
 	} else if (strcmp( "multicast_mtu", name ) == 0) { 
 		chan->multicast_mtu = atoi(value);
+
+	} else if (strcmp( "multicast_loopback", name ) == 0) { 
+		chan->multicast_loopback = atoi(value);
 		
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'channel'.\n", line_num);
@@ -351,6 +354,7 @@ int parse_config( char *filepath )
 				chan->multicast_port = dvbshout_multicast.port;
 				chan->multicast_ttl = dvbshout_multicast.ttl;
 				chan->multicast_mtu = dvbshout_multicast.mtu;
+				chan->multicast_loopback = dvbshout_multicast.loopback;
 				
 				
 				strcpy( section, ptr );
