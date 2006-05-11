@@ -36,6 +36,19 @@
 #include "mpa_header.h"
 
 
+// Use by gethostname()
+#ifndef HOST_NAME_MAX
+#ifdef _POSIX_HOST_NAME_MAX
+#define HOST_NAME_MAX	_POSIX_HOST_NAME_MAX
+#else
+#define HOST_NAME_MAX	(256)
+#endif
+#endif
+
+#ifndef DOMAIN_NAME_MAX
+#define DOMAIN_NAME_MAX	(1024)
+#endif
+
 
 /* DVB-S */
 
@@ -88,7 +101,7 @@
 // Maximum allowed PID value
 #define MAX_PID_COUNT			8192
 
-// Maximum allowed PID value
+// Standard string buffer size
 #define STR_BUF_SIZE			1025
 
 // Maximum allowed PID value
@@ -148,6 +161,7 @@
 					 (uint32_t)((b[16] & 0xFE) << 14) | \
 					 (uint32_t)(b[17] << 7) | \
 					 (uint32_t)(b[18] >> 1))
+
 
 
 

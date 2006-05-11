@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <netdb.h>
 
 #include "dvbshout.h"
 #include "config.h"
@@ -159,10 +160,49 @@ static void connect_server_channel( dvbshout_channel_t *chan )
 		
 }
 
+static char* gethostname_fqdn()
+{
+	char hostname[ HOST_NAME_MAX ];
+	char domainname[ DOMAIN_NAME_MAX ];
+	struct hostent	*hp;
+	
+	if (gethostname( hostname, HOST_NAME_MAX ) < 0) {
+		// Failed
+		return NULL;
+	}
+	
+	// If it contains a dot, then assume it is a FQDN
+    if (strchr(hostname, '.') != NULL)
+		return strdup( hostname );
+
+    // Try resolving the hostname into a FQDN
+    if ( (hp = gethostbyname( hostname )) != NULL ) {
+    	if (strchr(hp->h_name, '.') != NULL)
+    		return strdup( hp->h_name );
+    }
+
+	// Try appending our domain name
+	if ( getdomainname( domainname, DOMAIN_NAME_MAX) == 0
+	     && strlen( domainname ) )
+	{
+		int fqdn_len = strlen( hostname ) + strlen( domainname ) + 2;
+		char *fqdn = malloc( fqdn_len );
+		snprintf( fqdn, fqdn_len, "%s.%s", hostname, domainname );
+		return fqdn;
+	}
+
+
+	// What else can we try?
+	return NULL;
+}
+
 
 static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 {
 	RtpSession *session;
+	char cname[ STR_BUF_SIZE ];
+	char tool[ STR_BUF_SIZE ];
+	char *hostname;
 	
 	// Don't setup multicast if it isnt desired
 	if (strlen(chan->multicast_ip)==0) return NULL;
@@ -177,6 +217,24 @@ static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 	rtp_session_set_multicast_ttl(session, chan->multicast_ttl);
 	rtp_session_set_multicast_loopback(session, chan->multicast_loopback);
 	rtp_session_set_payload_type(session, RTP_MPEG_AUDIO_PT);
+	
+	// Set RTCP parameters
+	hostname = gethostname_fqdn();
+	snprintf( cname, STR_BUF_SIZE, "%s@%s", PACKAGE_NAME, hostname );
+	snprintf( tool, STR_BUF_SIZE, "%s/%s", PACKAGE_NAME, PACKAGE_VERSION );
+	free( hostname );
+	
+	rtp_session_set_source_description(
+		session,			// RtpSession*
+		cname,				// CNAME
+		chan->name,			// name
+		NULL,				// email
+		NULL,				// phone
+		NULL,				// loc
+		tool,				// tool
+		chan->description	// note
+	);
+	
 	
 	return session;	
 }
