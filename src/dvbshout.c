@@ -433,13 +433,13 @@ void process_ts_packets( int fd_dvr )
 		bytes_read = read(fd_dvr,buf,TS_PACKET_SIZE);
 		if (bytes_read==0) continue;
 		if (bytes_read!=TS_PACKET_SIZE) {
-			fprintf(stderr,"No bytes left to read - aborting\n");
+			fprintf(stderr,"Error: No bytes left to read - aborting\n");
 			break;
 		}
 		
 		// Check the sync-byte
 		if (TS_PACKET_SYNC_BYTE(buf) != 0x47) {
-			fprintf(stderr,"Lost syncronisation - aborting\n");
+			fprintf(stderr,"Error: Lost syncronisation - aborting\n");
 			break;
 		}
 		
@@ -448,13 +448,18 @@ void process_ts_packets( int fd_dvr )
 		
 		// Transport error?
 		if ( TS_PACKET_TRANS_ERROR(buf) ) {
-			fprintf(stderr, "Transport error in PID %d.\n", pid);
+			fprintf(stderr, "Warning: Transport error in PID %d.\n", pid);
+			if (channel_map[ pid ]) {
+				channel_map[ pid ]->synced = 0;
+				channel_map[ pid ]->buf_used = 0;
+			}
+			continue;
 		}			
 
 		// Scrambled?
 		if ( TS_PACKET_SCRAMBLING(buf) ) {
-			fprintf(stderr, "Error: PID %d is scrambled.\n", pid);
-			break;
+			fprintf(stderr, "Warning: PID %d is scrambled.\n", pid);
+			continue;
 		}	
 
 		// Location of and size of PES payload
