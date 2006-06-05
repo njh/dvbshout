@@ -488,7 +488,7 @@ void process_ts_packets( int fd_dvr )
 			extract_pes_payload( pes_ptr, pes_len, channel_map[ pid ], TS_PACKET_PAYLOAD_START(buf) );
 			
 		} else {
-			fprintf(stderr, "Error: don't know anything about PID %d.\n", pid);
+			fprintf(stderr, "Warning: don't know anything about PID %d.\n", pid);
 		}
 
 	}
