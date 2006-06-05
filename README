@@ -46,4 +46,5 @@ Make use of PES_PACKET_ALIGNMENT() flag in PES header to help sync audio.
 More error checking of incoming streams. 
 Quiet/verbose command line switches.
 Link the multicast packet timestamps to PES packet timestamps
+ - and hence don't require a reset when there is a DVB transport error
 
