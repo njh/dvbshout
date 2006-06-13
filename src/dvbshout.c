@@ -55,6 +55,18 @@ char* dvrdev[4]={"/dev/dvb/adapter0/dvr0","/dev/dvb/adapter1/dvr0","/dev/dvb/ada
 char* demuxdev[4]={"/dev/dvb/adapter0/demux0","/dev/dvb/adapter1/demux0","/dev/dvb/adapter2/demux0","/dev/dvb/adapter3/demux0"};
 
 
+// RTP Payload Type for MPEG Audio
+PayloadType	payload_type_mpeg_audio={
+	PAYLOAD_AUDIO_PACKETIZED, // type
+	90000,	// clock rate
+	0,		// bytes per sample N/A
+	NULL,	// zero pattern N/A
+	0,		// pattern_length N/A
+	0,		// normal_bitrate
+	"mpa",	// MIME Type
+	0		// flags
+};
+
 
 
 
@@ -528,6 +540,10 @@ int main(int argc, char **argv)
 	// Initialise ortp
 	ortp_set_log_level_mask( ORTP_WARNING|ORTP_ERROR|ORTP_FATAL );
 	ortp_init();
+	
+	/* set the mpeg audio payload type to 14 in the av profile.*/
+	rtp_profile_set_payload(&av_profile,14,&payload_type_mpeg_audio);
+
 	
 	// Parse command line arguments
 	parse_args( argc, argv );
