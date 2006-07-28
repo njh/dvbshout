@@ -44,6 +44,14 @@ static int parse_fec( const char* value, int line_num ) {
 
 static int parse_dscp( const char* value, int line_num ) {
 	if (!strcmp(value,"BE"))         return 0x00;
+	else if (!strcmp(value,"CS0"))  return 0x0A;
+	else if (!strcmp(value,"CS1"))  return 0x0A;
+	else if (!strcmp(value,"CS2"))  return 0x0A;
+	else if (!strcmp(value,"CS3"))  return 0x0A;
+	else if (!strcmp(value,"CS4"))  return 0x0A;
+	else if (!strcmp(value,"CS5"))  return 0x0A;
+	else if (!strcmp(value,"CS6"))  return 0x0A;
+	else if (!strcmp(value,"CS7"))  return 0x0A;
 	else if (!strcmp(value,"AF11"))  return 0x0A;
 	else if (!strcmp(value,"AF12"))  return 0x0C;
 	else if (!strcmp(value,"AF13"))  return 0x0E;
