@@ -43,15 +43,18 @@ static int parse_fec( const char* value, int line_num ) {
 }
 
 static int parse_dscp( const char* value, int line_num ) {
+
 	if (!strcmp(value,"BE"))         return 0x00;
-	else if (!strcmp(value,"CS0"))  return 0x0A;
-	else if (!strcmp(value,"CS1"))  return 0x0A;
-	else if (!strcmp(value,"CS2"))  return 0x0A;
-	else if (!strcmp(value,"CS3"))  return 0x0A;
-	else if (!strcmp(value,"CS4"))  return 0x0A;
-	else if (!strcmp(value,"CS5"))  return 0x0A;
-	else if (!strcmp(value,"CS6"))  return 0x0A;
-	else if (!strcmp(value,"CS7"))  return 0x0A;
+	
+	else if (!strcmp(value,"CS0"))   return 0x00;
+	else if (!strcmp(value,"CS1"))   return 0x08;
+	else if (!strcmp(value,"CS2"))   return 0x10;
+	else if (!strcmp(value,"CS3"))   return 0x18;
+	else if (!strcmp(value,"CS4"))   return 0x20;
+	else if (!strcmp(value,"CS5"))   return 0x28;
+	else if (!strcmp(value,"CS6"))   return 0x30;
+	else if (!strcmp(value,"CS7"))   return 0x38;
+	
 	else if (!strcmp(value,"AF11"))  return 0x0A;
 	else if (!strcmp(value,"AF12"))  return 0x0C;
 	else if (!strcmp(value,"AF13"))  return 0x0E;
@@ -64,6 +67,7 @@ static int parse_dscp( const char* value, int line_num ) {
 	else if (!strcmp(value,"AF41"))  return 0x22;
 	else if (!strcmp(value,"AF42"))  return 0x24;
 	else if (!strcmp(value,"AF43"))  return 0x26;
+	
 	else if (!strcmp(value,"EF"))    return 0x2E;
 	else {
 		fprintf(stderr,"Error parsing configuation line %d: invalid DSCP class name\n", line_num);
