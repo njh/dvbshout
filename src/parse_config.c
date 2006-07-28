@@ -29,6 +29,40 @@
 #include "dvbshout.h"
 
 
+static int parse_fec( const char* value, int line_num ) {
+	if (!strcmp(value,"auto"))      return FEC_AUTO;
+	else if (!strcmp(value,"1_2"))  return FEC_1_2;
+	else if (!strcmp(value,"2_3"))  return FEC_2_3;
+	else if (!strcmp(value,"3_4"))  return FEC_3_4;
+	else if (!strcmp(value,"5_6"))  return FEC_5_6;
+	else if (!strcmp(value,"7_8"))  return FEC_7_8;
+	else {
+		fprintf(stderr,"Error parsing configuation line %d: invalid FEC code\n", line_num);
+		exit(-1);
+	}
+}
+
+static int parse_dscp( const char* value, int line_num ) {
+	if (!strcmp(value,"BE"))         return 0x00;
+	else if (!strcmp(value,"AF11"))  return 0x0A;
+	else if (!strcmp(value,"AF12"))  return 0x0C;
+	else if (!strcmp(value,"AF13"))  return 0x0E;
+	else if (!strcmp(value,"AF21"))  return 0x12;
+	else if (!strcmp(value,"AF22"))  return 0x14;
+	else if (!strcmp(value,"AF23"))  return 0x16;
+	else if (!strcmp(value,"AF31"))  return 0x1a;
+	else if (!strcmp(value,"AF32"))  return 0x1C;
+	else if (!strcmp(value,"AF33"))  return 0x1E;
+	else if (!strcmp(value,"AF41"))  return 0x22;
+	else if (!strcmp(value,"AF42"))  return 0x24;
+	else if (!strcmp(value,"AF43"))  return 0x26;
+	else if (!strcmp(value,"EF"))    return 0x2E;
+	else {
+		fprintf(stderr,"Error parsing configuation line %d: invalid DSCP class name\n", line_num);
+		exit(-1);
+	}
+}
+
 static void process_statement_server( char* name, char* value, int line_num )
 {
 
@@ -71,6 +105,8 @@ static void process_statement_multicast( char* name, char* value, int line_num )
 		dvbshout_multicast.mtu = atoi( value );
 	} else if (strcmp( "loopback", name ) == 0) {
 		dvbshout_multicast.loopback = atoi( value );
+	} else if (strcmp( "dscp", name ) == 0) {
+		dvbshout_multicast.dscp = parse_dscp( value, line_num );
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'multicast'.\n", line_num);
 		exit(-1);
@@ -78,24 +114,6 @@ static void process_statement_multicast( char* name, char* value, int line_num )
 	
 }
 
-static int parse_fec( const char* value, int line_num ) {
-	if (!strcmp(value,"auto")) {
-		return FEC_AUTO;
-	} else if (!strcmp(value,"1_2")) {
-		return FEC_1_2;
-	} else if (!strcmp(value,"2_3")) {
-		return FEC_2_3;
-	} else if (!strcmp(value,"3_4")) {
-		return FEC_3_4;
-	} else if (!strcmp(value,"5_6")) {
-		return FEC_5_6;
-	} else if (!strcmp(value,"7_8")) {
-		return FEC_7_8;
-	} else {
-		fprintf(stderr,"Error parsing configuation line %d: invalid FEC code\n", line_num);
-		exit(-1);
-	}
-}
 
 
 static void process_statement_tuning( char* name, char* value, int line_num )
@@ -267,6 +285,9 @@ static void process_statement_channel( char* name, char* value, int line_num )
 
 	} else if (strcmp( "multicast_loopback", name ) == 0) { 
 		chan->multicast_loopback = atoi(value);
+
+	} else if (strcmp( "multicast_dscp", name ) == 0) { 
+		chan->multicast_dscp = parse_dscp( value, line_num );
 		
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'channel'.\n", line_num);
@@ -355,6 +376,7 @@ int parse_config( char *filepath )
 				chan->multicast_ttl = dvbshout_multicast.ttl;
 				chan->multicast_mtu = dvbshout_multicast.mtu;
 				chan->multicast_loopback = dvbshout_multicast.loopback;
+				chan->multicast_dscp = dvbshout_multicast.dscp;
 				
 				
 				strcpy( section, ptr );

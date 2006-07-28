@@ -89,7 +89,7 @@
 #define MULTICAST_PORT_DEFAULT			(5004)
 #define MULTICAST_MTU_DEFAULT			(1450)
 #define MULTICAST_LOOPBACK_DEFAULT		(0)
- 
+#define MULTICAST_DSCP_DEFAULT			(0x00)
 
 
 // The size of MPEG2 TS packets
@@ -205,6 +205,7 @@ typedef struct dvbshout_channel_s {
 	int multicast_port;					// Multicast Port
 	int multicast_ttl;					// Multicast TTL
 	int multicast_loopback;				// Multicast Loopback
+	int multicast_dscp;					// Differentiated services code point (QoS)
 	int multicast_mtu;					// Maxium Transmission Unit (of payload)
 	int multicast_ts;					// Session Timestamp
 	
@@ -221,6 +222,7 @@ typedef struct dvbshout_multicast_s {
 	int port;
 	int mtu;
 	int loopback;
+	int dscp;
 } dvbshout_multicast_t;
 
 
