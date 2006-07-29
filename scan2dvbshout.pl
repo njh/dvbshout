@@ -158,7 +158,7 @@ sub process_dvb_c {
 					# Clean up parameters
 					$inversion =~ s/INVERSION_//g;
 					$inversion =~ tr/A-Z/a-z/;
-					$fec =~ s/FEC_//;
+					$fec_inner =~ s/FEC_//;
 					$modulation =~ s/QAM_//;
 				
 					print OUTPUT "[tuning]\n";
@@ -167,7 +167,7 @@ sub process_dvb_c {
 					print OUTPUT "frequency: $f\n";
 					print OUTPUT "inversion: $inversion\n";
 					print OUTPUT "symbol_rate: $srate\n";
-					print OUTPUT "fec_inner: $fec\n";
+					print OUTPUT "fec_inner: $fec_inner\n";
 					print OUTPUT "modulation: $modulation\n\n";
 					$wrote_tuning=1;
 				}
