@@ -87,8 +87,15 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dv
 		chan->pes_pts=PES_PACKET_PTS(buf);
 	}
 	
+	// Store Display Time Stamp of this PES packet
 	if (PES_PACKET_PTS_DTS(buf) & 0x3) {
 		chan->pes_pts=PES_PACKET_DTS(buf);
+	}
+	
+	// Check for flag to see if MPEG audio starts at begining for this PES packet
+	if (!chan->synced && PES_PACKET_ALIGNMENT(buf)==0) {
+		fprintf(stderr, "Warning: PES_PACKET_ALIGNMENT=0 while trying to sync.\n" );
+		return 0;
 	}
 	
 

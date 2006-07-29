@@ -249,7 +249,7 @@ static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 	);
 	
 	
-	return session;	
+	return session;
 }
 
 
@@ -361,8 +361,8 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				connect_server_channel( chan );
 				
 				// Create multicast session
-				if (!chan->sess) 
-					chan->sess = create_rtp_session( chan );
+				if (!chan->rtp_sess) 
+					chan->rtp_sess = create_rtp_session( chan );
 				
 				fprintf(stderr, "\n");
 				
@@ -414,9 +414,9 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 		}
 		
 		// Send to multicast session
-		if( chan->sess ) {
+		if( chan->rtp_sess ) {
 			// Send audio payload (plus 4 null bytes at the start)
-			rtp_session_send_with_ts(chan->sess, (char*)chan->buf, chan->payload_size+4, chan->multicast_ts);
+			rtp_session_send_with_ts(chan->rtp_sess, (char*)chan->buf, chan->payload_size+4, chan->multicast_ts);
 			
 			// Timestamp for MPEG Audio is based on fixed 90kHz clock rate
 			chan->multicast_ts += ((chan->mpah.samples * 90000) / chan->mpah.samplerate)
@@ -606,7 +606,7 @@ int main(int argc, char **argv)
 	for (i=0;i<channel_count;i++) {
 		if (channels[i]->fd != -1) close(channels[i]->fd);
 		if (channels[i]->buf) free( channels[i]->buf );
-		if (channels[i]->sess) rtp_session_destroy(channels[i]->sess);
+		if (channels[i]->rtp_sess) rtp_session_destroy(channels[i]->rtp_sess);
 		if (channels[i]->shout) {
 			shout_close( channels[i]->shout );
 			shout_free( channels[i]->shout );

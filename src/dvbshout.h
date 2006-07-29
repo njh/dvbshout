@@ -199,7 +199,7 @@ typedef struct dvbshout_channel_s {
 	uint32_t buf_size;		// Usable size of MPEG Audio Buffer
 	uint32_t buf_used;		// Amount of buffer used
 	
-	RtpSession * sess;		// Multicast RTP session
+	RtpSession * rtp_sess;	// Multicast RTP session
 	char multicast_ip[STR_BUF_SIZE];	// Multicast IP
 	char multicast_local[STR_BUF_SIZE];	// Local IP
 	int multicast_port;					// Multicast Port

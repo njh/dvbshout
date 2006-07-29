@@ -42,7 +42,6 @@ configuration file.
 TODO
 ====
 
-Make use of PES_PACKET_ALIGNMENT() flag in PES header to help sync audio.
 More error checking of incoming streams. 
 Quiet/verbose command line switches.
 Link the multicast packet timestamps to PES packet timestamps
