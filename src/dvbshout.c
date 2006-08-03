@@ -248,7 +248,6 @@ static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 		chan->description	// note
 	);
 	
-	
 	return session;
 }
 
@@ -273,6 +272,7 @@ static void ts_continuity_check( dvbshout_channel_t *chan, int ts_cc )
 		// Only display an error after we gain sync
 		if (chan->synced) {
 			fprintf(stderr, "Warning: TS continuity error (pid: %d)\n", chan->pid );
+			chan->synced=0;
 		}
 		chan->continuity_count = ts_cc;
 	}
@@ -291,9 +291,28 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 	// Start of a PES header?
 	if ( start_of_pes ) {
 		
+
 		// Parse the PES header
 		es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
-							
+
+
+		// Does PES stream have timestamp attached?
+		if (chan->pes_ts) {
+			// Calulate the duration of the frames already in the buffer
+			unsigned long frames_in_buffer = chan->buf_used/chan->mpah.framesize;
+			unsigned long buf_dur = ((chan->mpah.samples * 90000) / chan->mpah.samplerate) * frames_in_buffer;
+	
+			// Make sure the multicast timestamp is in sync
+			int ts_diff = (chan->multicast_ts+buf_dur) - chan->pes_ts;
+			if (ts_diff) {
+				if (chan->synced && chan->multicast_ts != 0) {
+					fprintf(stderr, "Warning: PES TS != Multicast TS (diff=%d) (pid: %d)\n", ts_diff, chan->pid);
+				}
+				chan->multicast_ts = chan->pes_ts-buf_dur;
+			}
+		}
+
+		
 	} else if (chan->pes_stream_id) {
 	
 		// Don't output any data until we have seen a PES header

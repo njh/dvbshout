@@ -183,8 +183,7 @@ typedef struct dvbshout_channel_s {
 	int continuity_count;	// TS packet continuity counter
 	int pes_stream_id;		// PES stream ID
 	size_t pes_remaining;	// Number of bytes remaining in current PES packet
-	uint32_t pes_pts;		// Presentation Timestamp for current PES packet
-	uint32_t pes_dts;		// Decode Timestamp for current PES packet
+	unsigned long pes_ts;	// Timestamp for current PES packet
 	
 	shout_t *shout;				// libshout structure
 	char is_public;				// announce existance?
@@ -207,7 +206,7 @@ typedef struct dvbshout_channel_s {
 	int multicast_loopback;				// Multicast Loopback
 	int multicast_dscp;					// Differentiated services code point (QoS)
 	int multicast_mtu;					// Maxium Transmission Unit (of payload)
-	int multicast_ts;					// Session Timestamp
+	unsigned long multicast_ts;			// Session Timestamp
 	
 	int frames_per_packet;				// Number of MPEG audio frames per packet
 	int payload_size;					// Size of the payload

@@ -383,12 +383,14 @@ int parse_config( char *filepath )
 				chan->pes_stream_id = 0;
 				chan->fd = -1;
 				chan->continuity_count = -1;
+				chan->pes_ts = 0;
 				
 				chan->multicast_port = dvbshout_multicast.port;
 				chan->multicast_ttl = dvbshout_multicast.ttl;
 				chan->multicast_mtu = dvbshout_multicast.mtu;
 				chan->multicast_loopback = dvbshout_multicast.loopback;
 				chan->multicast_dscp = dvbshout_multicast.dscp;
+				chan->multicast_ts = 0;
 				
 				
 				strcpy( section, ptr );
