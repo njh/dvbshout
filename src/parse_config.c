@@ -104,23 +104,23 @@ static void process_statement_server( char* name, char* value, int line_num )
 	
 }
 
-static void process_statement_multicast( char* name, char* value, int line_num )
+static void process_statement_rtp( char* name, char* value, int line_num )
 {
 
-	if (strcmp( "ttl", name ) == 0) {
-		dvbshout_multicast.ttl = atoi( value );
-	} else if (strcmp( "port", name ) == 0) {
-		dvbshout_multicast.port = atoi( value );
+	if (strcmp( "port", name ) == 0) {
+		dvbshout_rtp.port = atoi( value );
 	} else if (strcmp( "user", name ) == 0) { 
-		dvbshout_multicast.port = atoi( value );
+		dvbshout_rtp.port = atoi( value );
 	} else if (strcmp( "mtu", name ) == 0) {
-		dvbshout_multicast.mtu = atoi( value );
-	} else if (strcmp( "loopback", name ) == 0) {
-		dvbshout_multicast.loopback = atoi( value );
+		dvbshout_rtp.mtu = atoi( value );
 	} else if (strcmp( "dscp", name ) == 0) {
-		dvbshout_multicast.dscp = parse_dscp( value, line_num );
+		dvbshout_rtp.dscp = parse_dscp( value, line_num );
+	} else if (strcmp( "multicast_loopback", name ) == 0) {
+		dvbshout_rtp.multicast_loopback = atoi( value );
+	} else if (strcmp( "multicast_ttl", name ) == 0) {
+		dvbshout_rtp.multicast_ttl = atoi( value );
 	} else {
-		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'multicast'.\n", line_num);
+		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'rtp'.\n", line_num);
 		exit(-1);
 	}
 	
@@ -283,23 +283,26 @@ static void process_statement_channel( char* name, char* value, int line_num )
 	} else if (strcmp( "url", name ) == 0) { 
 		strncpy( chan->url, value, STR_BUF_SIZE);
 
-	} else if (strcmp( "multicast_ip", name ) == 0) { 
-		strncpy( chan->multicast_ip, value, STR_BUF_SIZE);
+	} else if (strcmp( "rtp_ip", name ) == 0) { 
+		strncpy( chan->rtp_ip, value, STR_BUF_SIZE);
 		
-	} else if (strcmp( "multicast_port", name ) == 0) { 
-		chan->multicast_port = atoi(value);
+	} else if (strcmp( "rtp_port", name ) == 0) { 
+		chan->rtp_port = atoi(value);
 		
-	} else if (strcmp( "multicast_ttl", name ) == 0) { 
-		chan->multicast_ttl = atoi(value);
+	} else if (strcmp( "rtp_multicast_ttl", name ) == 0) { 
+		chan->rtp_multicast_ttl = atoi(value);
 		
-	} else if (strcmp( "multicast_mtu", name ) == 0) { 
-		chan->multicast_mtu = atoi(value);
+	} else if (strcmp( "rtp_mtu", name ) == 0) { 
+		chan->rtp_mtu = atoi(value);
 
-	} else if (strcmp( "multicast_loopback", name ) == 0) { 
-		chan->multicast_loopback = atoi(value);
+	} else if (strcmp( "rtp_multicast_loopback", name ) == 0) { 
+		chan->rtp_multicast_loopback = atoi(value);
 
-	} else if (strcmp( "multicast_dscp", name ) == 0) { 
-		chan->multicast_dscp = parse_dscp( value, line_num );
+	} else if (strcmp( "rtp_dscp", name ) == 0) { 
+		chan->rtp_dscp = parse_dscp( value, line_num );
+		
+	} else if (strcmp( "rtp_ssrc", name ) == 0) { 
+		chan->rtp_ssrc = atoi(value);
 		
 	} else {
 		fprintf(stderr, "Error parsing configuation line %d: invalid statement in section 'channel'.\n", line_num);
@@ -357,7 +360,7 @@ int parse_config( char *filepath )
 			if (strcmp( ptr, "server")==0) {
 				strcpy( section, ptr );
 				
-			} else if (strcmp( ptr, "multicast")==0) {
+			} else if (strcmp( ptr, "rtp")==0) {
 				strcpy( section, ptr );
 				
 			} else if (strcmp( ptr, "tuning")==0) {
@@ -385,12 +388,13 @@ int parse_config( char *filepath )
 				chan->continuity_count = -1;
 				chan->pes_ts = 0;
 				
-				chan->multicast_port = dvbshout_multicast.port;
-				chan->multicast_ttl = dvbshout_multicast.ttl;
-				chan->multicast_mtu = dvbshout_multicast.mtu;
-				chan->multicast_loopback = dvbshout_multicast.loopback;
-				chan->multicast_dscp = dvbshout_multicast.dscp;
-				chan->multicast_ts = 0;
+				chan->rtp_port = dvbshout_rtp.port;
+				chan->rtp_multicast_ttl = dvbshout_rtp.multicast_ttl;
+				chan->rtp_mtu = dvbshout_rtp.mtu;
+				chan->rtp_multicast_loopback = dvbshout_rtp.multicast_loopback;
+				chan->rtp_dscp = dvbshout_rtp.dscp;
+				chan->rtp_ssrc = 0x00;
+				chan->rtp_ts = 0;
 				
 				
 				strcpy( section, ptr );
@@ -425,8 +429,8 @@ int parse_config( char *filepath )
 			
 			if (strcmp( section, "server")==0) {	
 				process_statement_server( name, value, line_num );
-			} else if (strcmp( section, "multicast")==0) {	
-				process_statement_multicast( name, value, line_num );
+			} else if (strcmp( section, "rtp")==0) {	
+				process_statement_rtp( name, value, line_num );
 			} else if (strcmp( section, "tuning")==0) {	
 				process_statement_tuning( name, value, line_num );
 			} else if (strcmp( section, "channel")==0) {	

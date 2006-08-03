@@ -79,17 +79,17 @@
 
 
 /* Defauls for shout server */
-#define SERVER_PORT_DEFAULT				(8000)
-#define SERVER_USER_DEFAULT				"source"
-#define SERVER_PASSWORD_DEFAULT			"hackme"
-#define SERVER_PROTOCOL_DEFAULT			SHOUT_PROTOCOL_HTTP
+#define SERVER_PORT_DEFAULT			(8000)
+#define SERVER_USER_DEFAULT			"source"
+#define SERVER_PASSWORD_DEFAULT		"hackme"
+#define SERVER_PROTOCOL_DEFAULT		SHOUT_PROTOCOL_HTTP
 
 /* Defaults for Multicast */
-#define MULTICAST_TTL_DEFAULT			(5)
-#define MULTICAST_PORT_DEFAULT			(5004)
-#define MULTICAST_MTU_DEFAULT			(1450)
-#define MULTICAST_LOOPBACK_DEFAULT		(0)
-#define MULTICAST_DSCP_DEFAULT			(0x00)
+#define RTP_PORT_DEFAULT				(5004)
+#define RTP_MTU_DEFAULT					(1450)
+#define RTP_DSCP_DEFAULT				(0x00)
+#define RTP_MULTICAST_TTL_DEFAULT		(5)
+#define RTP_MULTICAST_LOOPBACK_DEFAULT	(0)
 
 
 // The size of MPEG2 TS packets
@@ -198,31 +198,32 @@ typedef struct dvbshout_channel_s {
 	uint32_t buf_size;		// Usable size of MPEG Audio Buffer
 	uint32_t buf_used;		// Amount of buffer used
 	
-	RtpSession * rtp_sess;	// Multicast RTP session
-	char multicast_ip[STR_BUF_SIZE];	// Multicast IP
-	char multicast_local[STR_BUF_SIZE];	// Local IP
-	int multicast_port;					// Multicast Port
-	int multicast_ttl;					// Multicast TTL
-	int multicast_loopback;				// Multicast Loopback
-	int multicast_dscp;					// Differentiated services code point (QoS)
-	int multicast_mtu;					// Maxium Transmission Unit (of payload)
-	unsigned long multicast_ts;			// Session Timestamp
+	RtpSession * rtp_sess;			// RTP session
+	char rtp_ip[STR_BUF_SIZE];		// RTP remote IP
+	char rtp_local[STR_BUF_SIZE];	// Local IP
+	int rtp_port;					// RTP remote Port
+	int rtp_dscp;					// Differentiated services code point (QoS)
+	int rtp_ssrc;					// RTP SSRC (Synchronization source)
+	int rtp_mtu;					// Maxium Transmission Unit (of payload)
+	unsigned long rtp_ts;			// RTP Session Timestamp
+	int rtp_multicast_ttl;			// RTP Multicast TTL
+	int rtp_multicast_loopback;		// RTP Multicast Loopback
 	
-	int frames_per_packet;				// Number of MPEG audio frames per packet
-	int payload_size;					// Size of the payload
+	int frames_per_packet;			// Number of MPEG audio frames per packet
+	int payload_size;				// Size of the payload
 	
 
 } dvbshout_channel_t;
 
 
 /* Structure server settings */
-typedef struct dvbshout_multicast_s {
-	int ttl;
+typedef struct dvbshout_rtp_s {
 	int port;
 	int mtu;
-	int loopback;
 	int dscp;
-} dvbshout_multicast_t;
+	int multicast_ttl;
+	int multicast_loopback;
+} dvbshout_rtp_t;
 
 
 /* Structure server settings */
@@ -272,7 +273,7 @@ extern dvbshout_tuning_t *dvbshout_tuning;
 extern dvbshout_channel_t *channel_map[MAX_PID_COUNT];
 extern dvbshout_channel_t *channels[MAX_CHANNEL_COUNT];
 extern dvbshout_server_t dvbshout_server;
-extern dvbshout_multicast_t dvbshout_multicast;
+extern dvbshout_rtp_t dvbshout_rtp;
 
 
 /* In tune.c */

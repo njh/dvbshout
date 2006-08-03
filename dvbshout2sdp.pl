@@ -77,9 +77,9 @@ foreach my $channel ( @$channels ) {
 	$sdp->session_uri( $channel->{'url'} );
 	my $time = $sdp->new_time_desc();
 	my $audio = $sdp->new_media_desc('audio');
-	$audio->address( $channel->{'multicast_ip'} );
-	$audio->port( $channel->{'multicast_port'} );
-	$audio->ttl( $channel->{'multicast_ttl'} );
+	$audio->address( $channel->{'rtp_ip'} );
+	$audio->port( $channel->{'rtp_port'} );
+	$audio->ttl( $channel->{'rtp_multicast_ttl'} );
 	
 	# 14=MPEG Audio
 	$audio->default_format_num( 14 );

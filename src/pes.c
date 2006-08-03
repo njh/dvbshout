@@ -93,10 +93,11 @@ unsigned char* parse_pes( unsigned char* buf, int size, size_t *payload_size, dv
 	//}
 	
 	// Check for flag to see if MPEG audio starts at begining for this PES packet
-	if (!chan->synced && PES_PACKET_ALIGNMENT(buf)==0) {
-		fprintf(stderr, "Warning: PES_PACKET_ALIGNMENT=0 while trying to sync to audio.\n" );
-		return 0;
-	}
+	// *** Disabled because not all broadcasters seem to set PES_PACKET_ALIGNMENT :( ***
+	//if (!chan->synced && PES_PACKET_ALIGNMENT(buf)==0) {
+	//	fprintf(stderr, "Warning: PES_PACKET_ALIGNMENT=0 while trying to sync to audio (pid: %d).\n", chan->pid);
+	//	return 0;
+	//}
 	
 
 /*

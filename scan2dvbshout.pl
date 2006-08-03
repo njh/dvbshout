@@ -79,11 +79,11 @@ print OUTPUT "user: source\n";
 print OUTPUT "password: hackme\n";
 print OUTPUT "protocol: icecast2\n\n";
 
-print OUTPUT "[multicast]\n";
-print OUTPUT "ttl: 5\n";
+print OUTPUT "[rtp]\n";
 print OUTPUT "port: 5004\n";
 print OUTPUT "mtu: 1450\n";
-print OUTPUT "loopback: 0\n\n";
+print OUTPUT "multicast_ttl: 5\n";
+print OUTPUT "multicast_loopback: 0\n\n";
 
 my $wrote = 0;
 if ($cardtype eq 's') {
@@ -268,7 +268,7 @@ sub print_channel {
 	print OUTPUT "name: $name\n";
 	print OUTPUT "mount: /dvb/$mount\n";
 	print OUTPUT "pid: $pid\n";
-	print OUTPUT "multicast_ip: ".random_multicast_ip()."\n";
+	print OUTPUT "rtp_ip: ".random_multicast_ip()."\n";
 	print OUTPUT "genre: Varied\n";
 	print OUTPUT "public: 0\n";
 	print OUTPUT "url:\n";

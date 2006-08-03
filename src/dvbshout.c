@@ -48,7 +48,7 @@ dvbshout_tuning_t *dvbshout_tuning = NULL;
 dvbshout_channel_t *channel_map[MAX_PID_COUNT];
 dvbshout_channel_t *channels[MAX_CHANNEL_COUNT];
 dvbshout_server_t dvbshout_server;
-dvbshout_multicast_t dvbshout_multicast;
+dvbshout_rtp_t dvbshout_rtp;
 
 char* frontenddev[4]={"/dev/dvb/adapter0/frontend0","/dev/dvb/adapter1/frontend0","/dev/dvb/adapter2/frontend0","/dev/dvb/adapter3/frontend0"};
 char* dvrdev[4]={"/dev/dvb/adapter0/dvr0","/dev/dvb/adapter1/dvr0","/dev/dvb/adapter2/dvr0","/dev/dvb/adapter3/dvr0"};
@@ -216,20 +216,26 @@ static RtpSession * create_rtp_session( dvbshout_channel_t *chan )
 	char tool[ STR_BUF_SIZE ];
 	char *hostname;
 	
-	// Don't setup multicast if it isnt desired
-	if (strlen(chan->multicast_ip)==0) return NULL;
+	// Don't setup RTP if it isnt desired
+	if (strlen(chan->rtp_ip)==0) return NULL;
 	
 	// Connect!
-	fprintf(stderr, "  Multicast session: %s/%d/%d\n",
-		chan->multicast_ip, chan->multicast_port, chan->multicast_ttl );	
+	fprintf(stderr, "  RTP session: %s/%d/%d\n",
+		chan->rtp_ip, chan->rtp_port, chan->rtp_multicast_ttl );	
 	
 	// Create new session
 	session=rtp_session_new(RTP_SESSION_SENDONLY);
-	rtp_session_set_remote_addr(session, chan->multicast_ip, chan->multicast_port);
-	rtp_session_set_multicast_ttl(session, chan->multicast_ttl);
-	rtp_session_set_multicast_loopback(session, chan->multicast_loopback);
-	rtp_session_set_dscp(session, chan->multicast_dscp);
+	rtp_session_set_remote_addr(session, chan->rtp_ip, chan->rtp_port);
+	rtp_session_set_multicast_ttl(session, chan->rtp_multicast_ttl);
+	rtp_session_set_multicast_loopback(session, chan->rtp_multicast_loopback);
+	rtp_session_set_dscp(session, chan->rtp_dscp);
 	rtp_session_set_payload_type(session, RTP_MPEG_AUDIO_PT);
+	
+	// Static SSRC?
+	if (chan->rtp_ssrc) {
+		fprintf(stderr, "  RTP static SSRC: %d\n", chan->rtp_ssrc);
+		rtp_session_set_ssrc(session, chan->rtp_ssrc);
+	}
 	
 	// Set RTCP parameters
 	hostname = gethostname_fqdn();
@@ -298,17 +304,21 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 
 		// Does PES stream have timestamp attached?
 		if (chan->pes_ts) {
+			unsigned long buf_dur = 0;
+			
 			// Calulate the duration of the frames already in the buffer
-			unsigned long frames_in_buffer = chan->buf_used/chan->mpah.framesize;
-			unsigned long buf_dur = ((chan->mpah.samples * 90000) / chan->mpah.samplerate) * frames_in_buffer;
+			if (chan->buf_used) {
+				int frames_in_buffer = chan->buf_used/chan->mpah.framesize;
+				buf_dur = ((chan->mpah.samples * 90000) / chan->mpah.samplerate) * frames_in_buffer;
+			}
 	
-			// Make sure the multicast timestamp is in sync
-			int ts_diff = (chan->multicast_ts+buf_dur) - chan->pes_ts;
+			// Make sure the RTP timestamp is in sync
+			int ts_diff = (chan->rtp_ts+buf_dur) - chan->pes_ts;
 			if (ts_diff) {
-				if (chan->synced && chan->multicast_ts != 0) {
-					fprintf(stderr, "Warning: PES TS != Multicast TS (diff=%d) (pid: %d)\n", ts_diff, chan->pid);
+				if (chan->synced && chan->rtp_ts != 0) {
+					fprintf(stderr, "Warning: PES TS != RTP TS (pid: %d, diff=%d)\n", chan->pid, ts_diff);
 				}
-				chan->multicast_ts = chan->pes_ts-buf_dur;
+				chan->rtp_ts = chan->pes_ts-buf_dur;
 			}
 		}
 
@@ -346,13 +356,13 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				chan->synced = 1;
 				
 				// Work out how big payload will be
-				if (chan->multicast_mtu < chan->mpah.framesize) {
+				if (chan->rtp_mtu < chan->mpah.framesize) {
 					fprintf(stderr, "Error: audio frame size is bigger than packet MTU.\n");
 					exit(-1);
 				}
 				
 				// Calculate the number of frames per packet
-				chan->frames_per_packet = ( chan->multicast_mtu / chan->mpah.framesize );
+				chan->frames_per_packet = ( chan->rtp_mtu / chan->mpah.framesize );
 				chan->payload_size = chan->frames_per_packet * chan->mpah.framesize;
 				fprintf(stderr, "  RTP payload size: %d (%d frames of audio)\n", 
 					chan->payload_size, chan->frames_per_packet );
@@ -379,7 +389,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				// (re-)connect to the server
 				connect_server_channel( chan );
 				
-				// Create multicast session
+				// Create RTP session
 				if (!chan->rtp_sess) 
 					chan->rtp_sess = create_rtp_session( chan );
 				
@@ -432,13 +442,13 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 			}
 		}
 		
-		// Send to multicast session
+		// Send to RTP session
 		if( chan->rtp_sess ) {
 			// Send audio payload (plus 4 null bytes at the start)
-			rtp_session_send_with_ts(chan->rtp_sess, (char*)chan->buf, chan->payload_size+4, chan->multicast_ts);
+			rtp_session_send_with_ts(chan->rtp_sess, (char*)chan->buf, chan->payload_size+4, chan->rtp_ts);
 			
 			// Timestamp for MPEG Audio is based on fixed 90kHz clock rate
-			chan->multicast_ts += ((chan->mpah.samples * 90000) / chan->mpah.samplerate)
+			chan->rtp_ts += ((chan->mpah.samples * 90000) / chan->mpah.samplerate)
 											* chan->frames_per_packet;
 
 		}
@@ -548,11 +558,11 @@ int main(int argc, char **argv)
 	dvbshout_server.protocol = SERVER_PROTOCOL_DEFAULT;
 	
 	// Default settings defaults
-	dvbshout_multicast.ttl = MULTICAST_TTL_DEFAULT;
-	dvbshout_multicast.port = MULTICAST_PORT_DEFAULT;
-	dvbshout_multicast.mtu = MULTICAST_MTU_DEFAULT;
-	dvbshout_multicast.loopback = MULTICAST_LOOPBACK_DEFAULT;
-	dvbshout_multicast.dscp = MULTICAST_DSCP_DEFAULT;
+	dvbshout_rtp.port = RTP_PORT_DEFAULT;
+	dvbshout_rtp.mtu = RTP_MTU_DEFAULT;
+	dvbshout_rtp.dscp = RTP_DSCP_DEFAULT;
+	dvbshout_rtp.multicast_ttl = RTP_MULTICAST_TTL_DEFAULT;
+	dvbshout_rtp.multicast_loopback = RTP_MULTICAST_LOOPBACK_DEFAULT;
 
 
 	// Initialise libshout
