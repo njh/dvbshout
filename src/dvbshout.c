@@ -86,7 +86,7 @@ static void set_ts_filters()
 	struct dmx_pes_filter_params pesFilterParams;
 	int i;
 	
-	fprintf(stderr,"Setting PID filters:\n");
+	fprintf(stderr,"Setting %d PID filters:\n", channel_count);
 
 	for (i=0;i<channel_count;i++) {
 	
