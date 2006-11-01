@@ -301,9 +301,14 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 		// Parse the PES header
 		es_ptr = parse_pes( pes_ptr, pes_len, &es_len, chan );
 
+	
+		/***** 
+		   Having problems staying in sync with the PES stream 
+		   So don't even try for the time being
+		******/
 
 		// Does PES stream have timestamp attached?
-		if (chan->pes_ts) {
+		/*if (chan->pes_ts) {
 			unsigned long buf_dur = 0;
 			
 			// Calulate the duration of the frames already in the buffer
@@ -312,6 +317,7 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				buf_dur = ((chan->mpah.samples * 90000) / chan->mpah.samplerate) * frames_in_buffer;
 			}
 	
+
 			// Make sure the RTP timestamp is in sync
 			int ts_diff = (chan->rtp_ts+buf_dur) - chan->pes_ts;
 			if (ts_diff) {
@@ -320,7 +326,8 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				}
 				chan->rtp_ts = chan->pes_ts-buf_dur;
 			}
-		}
+			
+		}*/
 
 		
 	} else if (chan->pes_stream_id) {
@@ -392,6 +399,9 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				// Create RTP session
 				if (!chan->rtp_sess) 
 					chan->rtp_sess = create_rtp_session( chan );
+					
+				// Initialise the RTP TS to the PES TS
+				chan->rtp_ts = chan->pes_ts;
 				
 				fprintf(stderr, "\n");
 				
