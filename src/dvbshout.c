@@ -108,28 +108,17 @@ static void set_ts_filters()
 
 
 
-static void connect_server_channel( dvbshout_channel_t *chan )
+static shout_t * connect_server_channel( dvbshout_channel_t *chan )
 {
-	shout_t *shout = NULL;
+	shout_t *shout;
 	char string[STR_BUF_SIZE];
 	int result;
 
-
 	// Don't connect?
 	if (strlen(dvbshout_server.host)==0) {
-		return;
-	}
-
-	// Create libshout object?
-	if (chan->shout==NULL) {
-		chan->shout = shout_new();
-	}
-	shout = chan->shout;
-
-	// Already connected to server?
-	if (shout_get_connected( shout ) == SHOUTERR_CONNECTED) {
-		fprintf(stderr, "  Disconnecting from server.\n");
-		shout_close( shout );
+		return NULL;
+	} else {
+		shout = shout_new();
 	}
 
 
@@ -169,7 +158,9 @@ static void connect_server_channel( dvbshout_channel_t *chan )
 		fprintf(stderr,"  Failed to connect to server: %s.\n", shout_get_error(shout));
 		exit(-1);
 	}
-		
+	
+	
+	return shout;
 }
 
 static char* gethostname_fqdn()
@@ -394,8 +385,9 @@ static void extract_pes_payload( unsigned char *pes_ptr, size_t pes_len, dvbshou
 				
 				
 				// (re-)connect to the server
-				connect_server_channel( chan );
-				
+				if (!chan->shout)
+					chan->shout = connect_server_channel( chan );
+
 				// Create RTP session
 				if (!chan->rtp_sess) 
 					chan->rtp_sess = create_rtp_session( chan );
