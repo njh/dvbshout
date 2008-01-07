@@ -132,7 +132,7 @@
 #define PES_PACKET_SYNC_BYTE2(b)	(b[1])
 #define PES_PACKET_SYNC_BYTE3(b)	(b[2])
 #define PES_PACKET_STREAM_ID(b)		(b[3])
-#define PES_PACKET_LEN(b)		((b[4]) << 8) | (b[5])
+#define PES_PACKET_LEN(b)			((b[4] << 8) | b[5])
 
 #define PES_PACKET_SYNC_CODE(b)		((b[6] & 0xC0) >> 6)
 #define PES_PACKET_SCRAMBLED(b)		((b[6] & 0x30) >> 4)
